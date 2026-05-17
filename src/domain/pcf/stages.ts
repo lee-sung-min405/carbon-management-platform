@@ -1,3 +1,55 @@
-// LIFECYCLE_STAGES constant (RAW_MATERIAL / PRODUCTION / TRANSPORT / USE / END_OF_LIFE)
-// Implemented in Commit 3.
-export {};
+/**
+ * PCF 생애주기 단계 정의.
+ *
+ * Prisma `StageCode` enum과 동일한 5단계를 사용한다.
+ * DB row를 따로 두지 않고, 본 상수 테이블이 단일 진실 공급원이다.
+ */
+
+/** 생애주기 단계 코드. Prisma `StageCode` enum과 1:1 대응. */
+export type StageCode =
+  | "RAW_MATERIAL"
+  | "PRODUCTION"
+  | "TRANSPORT"
+  | "USE"
+  | "END_OF_LIFE";
+
+export interface LifeCycleStage {
+  code: StageCode;
+  /** UI 표시용 한국어 라벨. */
+  label: string;
+  /** 1부터 시작하는 표시 순서. */
+  order: number;
+}
+
+/**
+ * 표시/집계 시 항상 본 배열의 순서를 기준으로 사용한다.
+ * 다른 모듈에서 임의로 정렬을 정의하지 않도록 한 곳에 모은다.
+ */
+export const LIFECYCLE_STAGES: readonly LifeCycleStage[] = [
+  { code: "RAW_MATERIAL", label: "원자재", order: 1 },
+  { code: "PRODUCTION", label: "생산", order: 2 },
+  { code: "TRANSPORT", label: "운송", order: 3 },
+  { code: "USE", label: "사용", order: 4 },
+  { code: "END_OF_LIFE", label: "폐기", order: 5 },
+] as const;
+
+const STAGE_BY_CODE: ReadonlyMap<StageCode, LifeCycleStage> = new Map(
+  LIFECYCLE_STAGES.map((s) => [s.code, s]),
+);
+
+/** 단계 코드 → 메타데이터. 알 수 없는 코드는 throw. */
+export function getStage(code: StageCode): LifeCycleStage {
+  const stage = STAGE_BY_CODE.get(code);
+  if (!stage) throw new Error(`Unknown stage code: ${code}`);
+  return stage;
+}
+
+/** UI 표시용 한국어 라벨 단축 헬퍼. */
+export function getStageLabel(code: StageCode): string {
+  return getStage(code).label;
+}
+
+/** TRANSPORT 단계 여부. 계산기에서 ton-km 분기에 사용. */
+export function isTransportStage(code: StageCode): boolean {
+  return code === "TRANSPORT";
+}
