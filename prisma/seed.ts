@@ -1,11 +1,168 @@
-// Prisma seed script — demo emission factors, sample product/activities.
-// Implemented in Commit 6.
-async function main() {
-  // Implemented in Commit 6.
+/**
+ * Prisma 시드 스크립트.
+ *
+ * 데모용 배출계수 6종 + 샘플 제품 1개(Laptop X1) + 활동 6건을 생성한다.
+ * 모든 EmissionFactor는 `isDemo=true`, `source`에 DEMO 표기를 포함하여
+ * UI/README/시드 3중으로 데모 데이터임을 명시한다 (계획 16장 안티패턴 대응).
+ *
+ * 멱등성: 매 실행마다 데모 데이터를 전부 비우고 다시 삽입한다.
+ *        (FK는 onDelete: Cascade로 설정되어 있어 Product 삭제만으로 활동/런이 함께 제거된다.)
+ */
+
+import { PrismaPg } from "@prisma/adapter-pg";
+
+import { PrismaClient, StageCode } from "../src/generated/prisma/client";
+
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error("DATABASE_URL is not set. Check .env / .env.example.");
 }
 
-main().catch((e) => {
-  // eslint-disable-next-line no-console
-  console.error(e);
-  process.exit(1);
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString }),
 });
+
+const DEMO_SOURCE = "DEMO ONLY — not for certification";
+
+async function main() {
+  // 1. 기존 데모 데이터 정리 (멱등성 보장)
+  await prisma.calculationItem.deleteMany();
+  await prisma.calculationRun.deleteMany();
+  await prisma.productActivity.deleteMany();
+  await prisma.product.deleteMany();
+  await prisma.emissionFactor.deleteMany();
+
+  // 2. 배출계수 (데모 값)
+  const factors = await Promise.all(
+    [
+      {
+        name: "알루미늄 (1차 생산)",
+        stageCode: StageCode.RAW_MATERIAL,
+        unit: "kgCO2e/kg",
+        value: 8.24,
+      },
+      {
+        name: "폴리카보네이트 수지",
+        stageCode: StageCode.RAW_MATERIAL,
+        unit: "kgCO2e/kg",
+        value: 3.43,
+      },
+      {
+        name: "공장 전력 (한국 평균)",
+        stageCode: StageCode.PRODUCTION,
+        unit: "kgCO2e/kWh",
+        value: 0.4567,
+      },
+      {
+        name: "디젤 화물차 (ton-km)",
+        stageCode: StageCode.TRANSPORT,
+        unit: "kgCO2e/ton-km",
+        value: 0.105,
+      },
+      {
+        name: "사용 단계 전력 (한국 평균)",
+        stageCode: StageCode.USE,
+        unit: "kgCO2e/kWh",
+        value: 0.4567,
+      },
+      {
+        name: "전자제품 폐기 (소각·매립 혼합)",
+        stageCode: StageCode.END_OF_LIFE,
+        unit: "kgCO2e/kg",
+        value: 0.62,
+      },
+    ].map((f) =>
+      prisma.emissionFactor.create({
+        data: { ...f, isDemo: true, source: DEMO_SOURCE },
+      }),
+    ),
+  );
+
+  const byName = new Map(factors.map((f) => [f.name, f]));
+  const factorId = (name: string): string => {
+    const f = byName.get(name);
+    if (!f) throw new Error(`Seed: missing factor ${name}`);
+    return f.id;
+  };
+
+  // 3. 샘플 제품 + 활동
+  const product = await prisma.product.create({
+    data: {
+      name: "Laptop X1",
+      sku: "LX1-2026",
+      functionalUnit: "1 unit",
+      description: "데모용 노트북 제품 (LCA 시연 시나리오)",
+      activities: {
+        create: [
+          {
+            stageCode: StageCode.RAW_MATERIAL,
+            name: "알루미늄 프레임 1.2kg",
+            amount: 1.2,
+            unit: "kg",
+            factorId: factorId("알루미늄 (1차 생산)"),
+            allocationRatio: 1,
+          },
+          {
+            stageCode: StageCode.RAW_MATERIAL,
+            name: "폴리카보네이트 하우징 0.5kg",
+            amount: 0.5,
+            unit: "kg",
+            factorId: factorId("폴리카보네이트 수지"),
+            allocationRatio: 1,
+          },
+          {
+            stageCode: StageCode.PRODUCTION,
+            name: "조립 공정 전력 30kWh",
+            amount: 30,
+            unit: "kWh",
+            factorId: factorId("공장 전력 (한국 평균)"),
+            allocationRatio: 1,
+          },
+          {
+            stageCode: StageCode.TRANSPORT,
+            name: "공장 → 물류센터 운송 (1.8kg × 320km)",
+            amount: 0, // 도메인 계산기는 weightKg/distanceKm을 우선 사용
+            unit: "ton-km",
+            factorId: factorId("디젤 화물차 (ton-km)"),
+            allocationRatio: 1,
+            weightKg: 1.8,
+            distanceKm: 320,
+          },
+          {
+            stageCode: StageCode.USE,
+            name: "3년 사용 전력 (연 80kWh × 3)",
+            amount: 240,
+            unit: "kWh",
+            factorId: factorId("사용 단계 전력 (한국 평균)"),
+            allocationRatio: 1,
+          },
+          {
+            stageCode: StageCode.END_OF_LIFE,
+            name: "제품 폐기 1.8kg",
+            amount: 1.8,
+            unit: "kg",
+            factorId: factorId("전자제품 폐기 (소각·매립 혼합)"),
+            allocationRatio: 1,
+          },
+        ],
+      },
+    },
+    include: { activities: true },
+  });
+
+  // eslint-disable-next-line no-console
+  console.log(
+    `Seed completed: ${factors.length} factors, product "${product.name}" with ${product.activities.length} activities.`,
+  );
+}
+
+main()
+  .catch((e) => {
+    // eslint-disable-next-line no-console
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
+

@@ -1,7 +1,7 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// PCF 도메인의 영속 모델 정의.
+//
+// IMPLEMENTATION_PLAN.md 5장의 엔티티 정의를 그대로 반영한다.
+// LifeCycleStage는 별도 테이블 대신 enum + src/domain/pcf/stages.ts 상수로 표현.
 
 generator client {
   provider = "prisma-client"
@@ -10,4 +10,80 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum StageCode {
+  RAW_MATERIAL
+  PRODUCTION
+  TRANSPORT
+  USE
+  END_OF_LIFE
+}
+
+model Product {
+  id             String            @id @default(cuid())
+  name           String
+  sku            String?           @unique
+  functionalUnit String
+  description    String?
+  createdAt      DateTime          @default(now())
+  activities     ProductActivity[]
+  runs           CalculationRun[]
+}
+
+model EmissionFactor {
+  id         String            @id @default(cuid())
+  name       String
+  stageCode  StageCode
+  unit       String // "kgCO2e/kg", "kgCO2e/kWh", "kgCO2e/ton-km"
+  value      Float
+  source     String // 데모용 표기 포함 ("DEMO ONLY — not for certification")
+  isDemo     Boolean           @default(true)
+  activities ProductActivity[]
+
+  @@index([stageCode])
+}
+
+model ProductActivity {
+  id              String         @id @default(cuid())
+  product         Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId       String
+  stageCode       StageCode
+  name            String
+  amount          Float // 비-운송: 활동량 / 운송: 0 또는 사전계산 ton-km
+  unit            String
+  factor          EmissionFactor @relation(fields: [factorId], references: [id])
+  factorId        String
+  allocationRatio Float          @default(1.0) // 0 < x <= 1
+  weightKg        Float? // TRANSPORT 전용
+  distanceKm      Float? // TRANSPORT 전용
+  note            String?
+  createdAt       DateTime       @default(now())
+
+  @@index([productId])
+  @@index([factorId])
+}
+
+model CalculationRun {
+  id           String            @id @default(cuid())
+  product      Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId    String
+  totalKgCO2e  Float
+  snapshotJson Json // 계산 시점의 활동/계수 스냅샷
+  runAt        DateTime          @default(now())
+  items        CalculationItem[]
+
+  @@index([productId, runAt])
+}
+
+model CalculationItem {
+  id         String         @id @default(cuid())
+  run        CalculationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  runId      String
+  activityId String
+  stageCode  StageCode
+  kgCO2e     Float
+  share      Float // 0~1
+
+  @@index([runId])
 }
