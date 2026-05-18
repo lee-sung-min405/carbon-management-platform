@@ -11,11 +11,11 @@
 ## 1. 개요
 
 - **도메인 한 줄**: 제품 1단위(`functionalUnit`)당 라이프사이클 5단계의 활동량과 배출계수를 곱해 `kgCO2e`로 환산한 뒤, 단계별/제품별로 집계하고 이력으로 박제하는 시스템.
-- **핵심 시나리오** (Demo Flow):
-  1. 제품 등록 (`Laptop X1`, 단위 `1 unit`)
-  2. 5단계 활동 등록 (원자재 / 생산 전력 / 운송 ton-km / 사용 단계 전력 / 폐기)
-  3. `POST /api/products/:id/calculate` 호출 → `CalculationRun` + `CalculationItem[]` 1행 저장
-  4. 대시보드에서 단계별 비중(파이) + 이력(라인) 확인
+- **핵심 시나리오** (Demo Flow, 과제 제공 자료 `CT-045` 기준):
+  1. 제품 등록 — `컴퓨터 화면` (sku `CT-045`, 단위 `1 unit`)
+  2. 자료 표 30행 그대로 활동 등록 — 전기 9 (USE, 한국전력 0.456 kgCO2e/kWh) · 원소재 플라스틱1 9 (RAW_MATERIAL, 2.3) · 원소재 플라스틱2 3 (RAW_MATERIAL, 3.2) · 운송 트럭 9 (TRANSPORT, 3.5 kgCO2e/ton-km, `amount` 직접입력)
+  3. `POST /api/products/:id/calculate` 호출 → `CalculationRun` + `CalculationItem[]` 30행 저장
+  4. 대시보드에서 단계별 비중(파이) + 이력(라인) 확인 → **총 11,072.724 kgCO2e** (전기 469.224 + 플라1 7,327.8 + 플라2 339.2 + 운송 2,936.5, 수기 합산과 일치)
 - **범위에서 의식적으로 제외한 것**은 §8 비-목표 참조.
 
 ## 2. 도메인 모델 — PCF & GHG Scope 매핑
@@ -148,7 +148,7 @@ docker compose up -d
 
 # 4) 마이그레이션 + 시드 (멱등)
 npx prisma migrate dev     # 스키마 적용
-npm run db:seed            # 제품 1 + 계수 6 + 활동 5 upsert
+npm run db:seed            # 제품 1 + 계수 4 + 활동 30 upsert (CT-045 컴퓨터 화면 시드)
 
 # 5) 개발 서버
 npm run dev                # http://localhost:3000
@@ -160,9 +160,10 @@ npm run dev                # http://localhost:3000
 # 제품 목록
 curl -s localhost:3000/api/products | jq
 
-# 계산 실행
-PID=$(curl -s localhost:3000/api/products | jq -r '.data[0].id')
+# 계산 실행 (CT-045 = 시드된 "컴퓨터 화면")
+PID=$(curl -s localhost:3000/api/products | jq -r '.data[] | select(.sku=="CT-045") | .id')
 curl -s -X POST localhost:3000/api/products/$PID/calculate | jq
+#   → totalKgCO2e: 11072.724 (자료 표 수기 합산과 일치)
 
 # 이력
 curl -s "localhost:3000/api/products/$PID/calculation-runs?include=items" | jq
@@ -174,7 +175,7 @@ curl -s localhost:3000/api/health | jq
 ## 6. 테스트
 
 ```bash
-npm test          # vitest run (단위 30건)
+npm test          # vitest run (단위 42건)
 npm run test:watch
 ```
 
