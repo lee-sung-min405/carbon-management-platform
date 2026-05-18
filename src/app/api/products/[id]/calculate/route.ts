@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
 import { requireProduct } from "@/lib/api/handlers";
+import {
+  buildCalculationSnapshot,
+  toDomainActivity,
+  toDomainFactor,
+} from "@/lib/adapters/pcf";
 import { calculateProductPcf } from "@/domain/pcf/calculate";
-import type {
-  EmissionFactor as DomainEmissionFactor,
-  ProductActivity as DomainProductActivity,
-} from "@/domain/pcf/types";
-import type { Prisma } from "@/generated/prisma/client";
 
 /**
  * POST /api/products/[id]/calculate
@@ -43,28 +43,8 @@ export async function POST(
     });
 
     // Prisma row → 순수 도메인 객체로 정규화 (계산기는 외부 의존이 없음)
-    const domainActivities: DomainProductActivity[] = activities.map((a) => ({
-      id: a.id,
-      productId: a.productId,
-      stageCode: a.stageCode,
-      name: a.name,
-      amount: a.amount,
-      unit: a.unit,
-      factorId: a.factorId,
-      allocationRatio: a.allocationRatio,
-      weightKg: a.weightKg,
-      distanceKm: a.distanceKm,
-      note: a.note,
-    }));
-    const domainFactors: DomainEmissionFactor[] = factors.map((f) => ({
-      id: f.id,
-      name: f.name,
-      stageCode: f.stageCode,
-      unit: f.unit,
-      value: f.value,
-      source: f.source,
-      isDemo: f.isDemo,
-    }));
+    const domainActivities = activities.map(toDomainActivity);
+    const domainFactors = factors.map(toDomainFactor);
 
     let result;
     try {
@@ -75,17 +55,11 @@ export async function POST(
       return fail(400, message, { code: "CALCULATION_ERROR" });
     }
 
-    const snapshot = {
-      activities: domainActivities,
-      factors: domainFactors,
-      calculatedAt: new Date().toISOString(),
-    } satisfies Record<string, unknown>;
-
     const run = await prisma.calculationRun.create({
       data: {
         productId,
         totalKgCO2e: result.total,
-        snapshotJson: snapshot as unknown as Prisma.InputJsonValue,
+        snapshotJson: buildCalculationSnapshot(domainActivities, domainFactors),
         items: {
           create: result.items.map((it) => ({
             activityId: it.activityId,
