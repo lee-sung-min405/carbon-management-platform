@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
+import { requireProduct } from "@/lib/api/handlers";
 
 /**
  * GET /api/products/[id]/calculation-runs
@@ -12,19 +13,14 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } },
 ) {
-  const productId = params.id;
-  if (!productId) return fail(400, "제품 ID가 필요합니다.");
+  const productCheck = await requireProduct(params.id);
+  if (!productCheck.ok) return productCheck.response;
+  const productId = productCheck.product.id;
 
   const url = new URL(request.url);
   const includeItems = url.searchParams.get("include") === "items";
 
   try {
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-      select: { id: true },
-    });
-    if (!product) return fail(404, "해당 제품을 찾을 수 없습니다.");
-
     const runs = await prisma.calculationRun.findMany({
       where: { productId },
       orderBy: { runAt: "desc" },
