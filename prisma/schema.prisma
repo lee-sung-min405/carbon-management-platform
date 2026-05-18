@@ -41,6 +41,7 @@ model EmissionFactor {
   isDemo     Boolean           @default(true)
   activities ProductActivity[]
 
+  @@unique([name, stageCode])
   @@index([stageCode])
 }
 
