@@ -23,8 +23,6 @@ export const API_ERROR_CODES = {
   PRODUCT_NOT_FOUND: "PRODUCT_NOT_FOUND",
   /** 활동 미존재. */
   ACTIVITY_NOT_FOUND: "ACTIVITY_NOT_FOUND",
-  /** 계산 실행 미존재. */
-  RUN_NOT_FOUND: "RUN_NOT_FOUND",
   /** SKU 중복 (Prisma P2002). */
   SKU_CONFLICT: "SKU_CONFLICT",
 

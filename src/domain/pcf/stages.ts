@@ -49,22 +49,6 @@ export const STAGE_CODES = [
 /** 단계 코드 존재 여부를 O(1)로 검사하기 위한 집합. */
 export const STAGE_CODE_SET: ReadonlySet<StageCode> = new Set(STAGE_CODES);
 
-const STAGE_BY_CODE: ReadonlyMap<StageCode, LifeCycleStage> = new Map(
-  LIFECYCLE_STAGES.map((s) => [s.code, s]),
-);
-
-/** 단계 코드 → 메타데이터. 알 수 없는 코드는 throw. */
-export function getStage(code: StageCode): LifeCycleStage {
-  const stage = STAGE_BY_CODE.get(code);
-  if (!stage) throw new Error(`Unknown stage code: ${code}`);
-  return stage;
-}
-
-/** UI 표시용 한국어 라벨 단축 헬퍼. */
-export function getStageLabel(code: StageCode): string {
-  return getStage(code).label;
-}
-
 /** TRANSPORT 단계 여부. 계산기에서 ton-km 분기에 사용. */
 export function isTransportStage(code: StageCode): boolean {
   return code === "TRANSPORT";

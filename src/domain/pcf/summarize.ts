@@ -15,6 +15,8 @@ import { LIFECYCLE_STAGES, type StageCode } from "./stages";
  * - 해당 단계의 item이 없으면 `kgCO2e: 0`, `share: 0`으로 포함한다
  *   (차트에서 "0인 단계"도 명시적으로 보여주기 위함).
  * - `share`의 합은 1.0 ± 부동소수 오차. 총합이 0이면 모두 0.
+ *
+ * 소비 예정: C11 대시보드 StageBarChart / StagePieChart.
  */
 export function summarizeByStage(
   items: readonly CalculationItem[],
@@ -44,6 +46,8 @@ export function summarizeByStage(
  *
  * - 입력 배열을 변경하지 않는다 (새 배열 반환).
  * - `n <= 0`이면 빈 배열. n이 items 길이보다 크면 전체 반환.
+ *
+ * 소비 예정: C11 대시보드 TopEmittersTable.
  */
 export function getTopEmissionActivities(
   items: readonly CalculationItem[],

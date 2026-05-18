@@ -16,7 +16,7 @@ import type { ActivityInput } from "@/lib/validations/activity";
  * 응답 봉투/에러 코드/메시지 문구는 기존 라우트와 1:1 동일하게 유지한다 (UI 호환).
  */
 
-export type HandlerResult<T> =
+type HandlerResult<T> =
   | ({ ok: true } & T)
   | { ok: false; response: NextResponse };
 
