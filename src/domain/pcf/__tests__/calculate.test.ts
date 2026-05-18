@@ -115,7 +115,7 @@ describe("calculateActivityEmission", () => {
     );
   });
 
-  it("#8 TRANSPORT인데 weightKg/distanceKm이 없으면 거부한다", () => {
+  it("#8 TRANSPORT 파생 모드에서 weightKg/distanceKm 일부만 있고 amount=0이면 거부", () => {
     const factor = makeFactor({
       stageCode: "TRANSPORT",
       unit: "kgCO2e/ton-km",
@@ -130,8 +130,66 @@ describe("calculateActivityEmission", () => {
       distanceKm: 200,
     });
     expect(() => calculateActivityEmission(activity, factor)).toThrow(
-      /weightKg and distanceKm/,
+      /weightKg\+distanceKm.*amount\(ton-km\)/,
     );
+  });
+
+  it("TRANSPORT 직접 모드: amount(ton-km) 그대로 사용 (41 × 3.5 = 143.5)", () => {
+    const factor = makeFactor({
+      stageCode: "TRANSPORT",
+      unit: "kgCO2e/ton-km",
+      value: 3.5,
+    });
+    const activity = makeActivity({
+      stageCode: "TRANSPORT",
+      amount: 41,
+      unit: "ton-km",
+      factorId: factor.id,
+      weightKg: null,
+      distanceKm: null,
+    });
+    expect(calculateActivityEmission(activity, factor)).toBeCloseTo(143.5, 6);
+  });
+
+  it("TRANSPORT: weight+distance와 amount 모두 있으면 파생 모드 우선", () => {
+    const factor = makeFactor({
+      stageCode: "TRANSPORT",
+      unit: "kgCO2e/ton-km",
+      value: 0.1,
+    });
+    const activity = makeActivity({
+      stageCode: "TRANSPORT",
+      amount: 999, // 무시되어야 함
+      unit: "ton-km",
+      factorId: factor.id,
+      weightKg: 500,
+      distanceKm: 200,
+    });
+    // (500/1000)*200*0.1 = 10 — amount=999 이 사용되었다면 999*0.1=99.9
+    expect(calculateActivityEmission(activity, factor)).toBeCloseTo(10, 6);
+  });
+
+  it("TRANSPORT: 모든 입력 누락(amount=0, w/d=null)이면 INVALID_TRANSPORT", () => {
+    const factor = makeFactor({
+      stageCode: "TRANSPORT",
+      unit: "kgCO2e/ton-km",
+      value: 0.1,
+    });
+    const activity = makeActivity({
+      stageCode: "TRANSPORT",
+      amount: 0,
+      unit: "ton-km",
+      factorId: factor.id,
+      weightKg: null,
+      distanceKm: null,
+    });
+    try {
+      calculateActivityEmission(activity, factor);
+      throw new Error("expected to throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(PcfDomainError);
+      expect((err as PcfDomainError).code).toBe("INVALID_TRANSPORT");
+    }
   });
 
   it("활동 단계와 계수 단계가 다르면 거부한다 (도메인 가드)", () => {

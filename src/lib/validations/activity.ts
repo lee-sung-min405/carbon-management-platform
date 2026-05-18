@@ -4,12 +4,15 @@ import { STAGE_CODES } from "@/domain/pcf/stages";
 
 /**
  * ProductActivity 입력 Zod 스키마.
- * - amount: 음수 금지. TRANSPORT에서는 0 허용(계산기는 weightKg*distanceKm 사용),
- *   그 외 단계에서는 0 초과여야 함 → superRefine에서 분기 검증
- * - weightKg/distanceKm: 입력 시 양수
+ * - amount: 음수 금지.
+ *   · 비-운송 단계 → 0 초과 필수.
+ *   · TRANSPORT 단계 → 두 입력 모드 중 하나 선택(아래).
+ * - TRANSPORT 입력 모드 (XOR-ish):
+ *   ① 파생 모드: weightKg + distanceKm 모두 입력 → 계산기가 ton-km로 환산.
+ *   ② 직접 모드: amount > 0 (단위: ton-km) → weightKg/distanceKm 비움.
+ *   둘 중 어느 쪽도 만족하지 못하면 검증 실패. 한쪽만 채운 입력(weightKg만 등)도 실패.
+ * - 그 외 단계: weightKg/distanceKm 입력되어도 API 레이어에서 null로 강제.
  * - allocationRatio: 0 초과 1 이하 (기본 1)
- * - TRANSPORT 단계: weightKg/distanceKm 필수 (superRefine)
- * - 그 외 단계: weightKg/distanceKm 입력되어도 API 레이어에서 null로 강제
  * - 빈 문자열 note → undefined로 정규화
  */
 export const ActivityInput = z
@@ -43,22 +46,35 @@ export const ActivityInput = z
   })
   .superRefine((v, ctx) => {
     if (v.stageCode === "TRANSPORT") {
-      if (v.weightKg == null) {
+      const hasWeight = v.weightKg != null;
+      const hasDistance = v.distanceKm != null;
+      const hasDerived = hasWeight && hasDistance;
+      const hasDirect = v.amount > 0;
+
+      // 한쪽만 채운 파생 입력(무게만 or 거리만) — 항상 실패
+      if (hasWeight !== hasDistance) {
         ctx.addIssue({
-          path: ["weightKg"],
+          path: [hasWeight ? "distanceKm" : "weightKg"],
           code: "custom",
-          message: "운송 단계에서는 무게(kg)를 입력해야 합니다.",
+          message: "운송 단계에서 무게(kg)와 거리(km)는 함께 입력해야 합니다.",
+        });
+        return;
+      }
+
+      // 둘 다 비었고 amount(ton-km)도 없음
+      if (!hasDerived && !hasDirect) {
+        ctx.addIssue({
+          path: ["amount"],
+          code: "custom",
+          message:
+            "운송 단계는 무게(kg)+거리(km)를 모두 입력하거나, 활동량(ton-km)을 0보다 크게 입력해야 합니다.",
         });
       }
-      if (v.distanceKm == null) {
-        ctx.addIssue({
-          path: ["distanceKm"],
-          code: "custom",
-          message: "운송 단계에서는 거리(km)를 입력해야 합니다.",
-        });
-      }
-    } else if (!(v.amount > 0)) {
-      // 비-운송 단계: amount가 곧 활동량이므로 0보다 커야 함
+      return;
+    }
+
+    // 비-운송 단계: amount가 곧 활동량이므로 0보다 커야 함
+    if (!(v.amount > 0)) {
       ctx.addIssue({
         path: ["amount"],
         code: "custom",

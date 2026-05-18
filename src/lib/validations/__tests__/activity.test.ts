@@ -7,8 +7,11 @@ import { ActivityInput } from "../activity";
  *
  * 메시지 문자열은 변동 가능성이 있으므로 `path` 기반으로 검증한다.
  * 핵심 분기는 다음과 같다:
- *  - amount: 비-TRANSPORT 단계는 > 0, TRANSPORT는 0 허용 (회귀 보호: 7113fa7)
- *  - TRANSPORT: weightKg / distanceKm 필수
+ *  - amount: 비-TRANSPORT 단계는 > 0
+ *  - TRANSPORT 입력 모드 (XOR-ish):
+ *    · 파생 모드: weightKg + distanceKm 모두 → amount=0 허용
+ *    · 직접 모드: amount(ton-km) > 0 → weightKg/distanceKm 비움
+ *    · 한쪽만 채운 파생 입력 또는 둘 다 비고 amount=0 → 실패
  *  - allocationRatio: (0, 1]
  *  - note: 빈 문자열은 undefined로 정규화
  *  - stageCode: 사전 정의된 값 외 거부
@@ -61,12 +64,46 @@ describe("ActivityInput", () => {
     expect(result.success).toBe(true);
   });
 
-  it("TRANSPORT + weight/distance 누락 → 두 경로 모두 실패", () => {
+  it("TRANSPORT + weight/distance/amount 모두 누락 → amount 경로 실패", () => {
     const paths = failedPaths(
       base({ stageCode: "TRANSPORT", amount: 0, unit: "ton-km" }),
     );
-    expect(paths).toContain("weightKg");
+    expect(paths).toContain("amount");
+  });
+
+  it("TRANSPORT 직접 모드: amount(ton-km)만 있고 weight/distance 비어도 success", () => {
+    const result = ActivityInput.safeParse(
+      base({
+        stageCode: "TRANSPORT",
+        amount: 41,
+        unit: "ton-km",
+      }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it("TRANSPORT 파생 모드: weightKg만 입력하면 distanceKm 누락으로 실패", () => {
+    const paths = failedPaths(
+      base({
+        stageCode: "TRANSPORT",
+        amount: 0,
+        unit: "ton-km",
+        weightKg: 500,
+      }),
+    );
     expect(paths).toContain("distanceKm");
+  });
+
+  it("TRANSPORT 파생 모드: distanceKm만 입력하면 weightKg 누락으로 실패", () => {
+    const paths = failedPaths(
+      base({
+        stageCode: "TRANSPORT",
+        amount: 0,
+        unit: "ton-km",
+        distanceKm: 200,
+      }),
+    );
+    expect(paths).toContain("weightKg");
   });
 
   it("allocationRatio 경계: 0 실패, 1 성공, 1.5 실패", () => {

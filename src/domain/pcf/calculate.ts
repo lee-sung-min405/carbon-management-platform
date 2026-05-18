@@ -8,7 +8,8 @@
  *
  * 공식:
  *  - 일반 단계: kgCO2e = amount * factor.value * allocationRatio
- *  - TRANSPORT  : tonKm  = (weightKg / 1000) * distanceKm
+ *  - TRANSPORT  : tonKm  = (weightKg / 1000) * distanceKm  (파생 모드)
+ *                  또는 tonKm = amount (직접 모드, 단위 ton-km)
  *                 kgCO2e = tonKm * factor.value * allocationRatio
  */
 
@@ -24,8 +25,10 @@ import { PcfDomainError } from "./errors";
 /**
  * 활동 1건의 배출량(kgCO2e)을 계산한다.
  *
- * - TRANSPORT 단계는 `weightKg`, `distanceKm`이 모두 육수일 때만 유효하며
- *   ton-km 환산을 통해 `amount`를 사용하지 않는다.
+ * - TRANSPORT 단계는 두 입력 모드를 지원한다:
+ *   ① 파생 모드: weightKg, distanceKm이 모두 양수 → ton-km로 환산해서 사용.
+ *   ② 직접 모드: amount > 0 → amount 자체를 ton-km로 사용 (단위 ton-km).
+ *   둘 다 만족하면 파생 모드를 우선한다.
  * - 그 외 단계는 `amount`가 양수일 때만 유효하다.
  * - `allocationRatio`는 (0, 1] 범위가 아니면 오류.
  *
@@ -60,20 +63,27 @@ export function calculateActivityEmission(
   }
 
   if (isTransportStage(activity.stageCode)) {
-    const { weightKg, distanceKm } = activity;
-    if (weightKg == null || distanceKm == null) {
+    const { weightKg, distanceKm, amount } = activity;
+    const hasDerived = weightKg != null && distanceKm != null;
+
+    let tonKm: number;
+    if (hasDerived) {
+      if (weightKg! <= 0 || distanceKm! <= 0) {
+        throw new PcfDomainError(
+          "INVALID_TRANSPORT",
+          `TRANSPORT activity ${activity.id} requires positive weightKg and distanceKm`,
+        );
+      }
+      tonKm = (weightKg! / 1000) * distanceKm!;
+    } else if (amount > 0) {
+      // 직접 모드: amount 자체를 ton-km로 해석
+      tonKm = amount;
+    } else {
       throw new PcfDomainError(
         "INVALID_TRANSPORT",
-        `TRANSPORT activity ${activity.id} requires weightKg and distanceKm`,
+        `TRANSPORT activity ${activity.id} requires either (weightKg+distanceKm) or amount(ton-km)`,
       );
     }
-    if (weightKg <= 0 || distanceKm <= 0) {
-      throw new PcfDomainError(
-        "INVALID_TRANSPORT",
-        `TRANSPORT activity ${activity.id} requires positive weightKg and distanceKm`,
-      );
-    }
-    const tonKm = (weightKg / 1000) * distanceKm;
     return tonKm * factor.value * ratio;
   }
 
