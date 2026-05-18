@@ -108,6 +108,7 @@ src/
 | GET    | `/products/:id/calculation-runs`       | 계산 이력 (`?include=items`로 명세 포함)               | `PRODUCT_NOT_FOUND`, `INTERNAL_ERROR`                                                                           |
 | GET    | `/emission-factors`                    | 배출계수 목록 (`?stage=PRODUCTION` 필터)               | `INVALID_STAGE`, `INTERNAL_ERROR`                                                                               |
 | GET    | `/lifecycle-stages`                    | 단계 메타 (UI 셀렉터)                                  | —                                                                                                               |
+| GET    | `/health`                              | 프로세스 + DB 상태 (`SELECT 1` ping)                       | `INTERNAL_ERROR` (503, DB 연결 실패 시)                                                                       |
 
 전체 에러 코드 카탈로그는 [src/lib/api/error-codes.ts](src/lib/api/error-codes.ts)에 단일 정의로 모아 두었다. 라우트는 반드시 `API_ERROR_CODES.X`를 통해 `code` 를 부여한다.
 
@@ -167,6 +168,9 @@ curl -s -X POST localhost:3000/api/products/$PID/calculate | jq
 
 # 이력
 curl -s "localhost:3000/api/products/$PID/calculation-runs?include=items" | jq
+
+# 헬스체크 (프로세스 + DB ping)
+curl -s localhost:3000/api/health | jq
 ```
 
 ## 6. 테스트
