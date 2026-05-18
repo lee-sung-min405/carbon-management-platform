@@ -46,9 +46,9 @@ model EmissionFactor {
   value      Float
   source     String // 데모용 표기 포함 ("DEMO ONLY — not for certification")
   isDemo     Boolean           @default(true)
-  version    Int               @default(1) // 계수 값 변경 이력 (장변 시 +1)
-  validFrom  DateTime          @default(now()) // 이 계수가 적용되는 시작 시점
-  validTo    DateTime? // 장변으로 종료되면 이전 row의 validTo 채움
+  // 계수 버전 이력: 값이 바뀌면 동일 (name, stageCode)로 version+1 한 새 row 를 upsert 한다.
+  // 과거 CalculationRun.snapshotJson 에 factor 스냅샷이 박제되므로 시계열 유효성 컬럼(validFrom/validTo)은 두지 않는다.
+  version    Int               @default(1)
   activities ProductActivity[]
 
   @@unique([name, stageCode, version])
