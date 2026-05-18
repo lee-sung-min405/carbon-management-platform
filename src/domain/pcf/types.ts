@@ -7,6 +7,7 @@
  */
 
 import type { StageCode } from "./stages";
+import type { GhgScope } from "./scopes";
 
 /** PCF 산정의 대상 단위. 예: "노트북 1대". */
 export interface Product {
@@ -26,6 +27,8 @@ export interface EmissionFactor {
   id: string;
   name: string;
   stageCode: StageCode;
+  /** GHG 프로토콜 스코프 분류 (Scope 1/2/3). */
+  scope: GhgScope;
   /** 계수의 단위 문자열. 계산 시 직접 사용되지는 않으며 표기/검증용. */
   unit: string;
   /** 계수 값. 항상 양수. */
@@ -34,6 +37,8 @@ export interface EmissionFactor {
   source: string;
   /** 데모용 샘플 데이터 여부. UI/README/seed에서 일관되게 표기한다. */
   isDemo: boolean;
+  /** 계수 값 변경 이력 버전 (1부터 시작). */
+  version: number;
 }
 
 /**
@@ -75,6 +80,8 @@ export interface ProductActivity {
 export interface CalculationItem {
   activityId: string;
   stageCode: StageCode;
+  /** 참조된 배출계수의 GHG Scope 스냅샷 (Scope 단위 집계용). */
+  scope: GhgScope;
   kgCO2e: number;
   share: number;
 }
@@ -91,5 +98,13 @@ export interface StageSummary {
   stageCode: StageCode;
   kgCO2e: number;
   /** 단계 비율. 총합이 0이면 0. 합계는 1.0 ± 부동소수 오차. */
+  share: number;
+}
+
+/** Scope별 집계 1건. */
+export interface ScopeSummary {
+  scope: GhgScope;
+  kgCO2e: number;
+  /** Scope 비율. 총합이 0이면 0. */
   share: number;
 }

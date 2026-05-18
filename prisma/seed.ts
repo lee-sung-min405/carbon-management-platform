@@ -12,7 +12,7 @@
 
 import { PrismaPg } from "@prisma/adapter-pg";
 
-import { PrismaClient, StageCode } from "../src/generated/prisma/client";
+import { PrismaClient, StageCode, GhgScope } from "../src/generated/prisma/client";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -26,41 +26,47 @@ const prisma = new PrismaClient({
 const DEMO_SOURCE = "DEMO ONLY — not for certification";
 
 async function main() {
-  // 1. 배출계수 (데모 값) — 자연키(name+stageCode) 기준 upsert
+  // 1. 배출계수 (데모 값) — 자연키(name+stageCode+version=1) 기준 upsert
   const factorSeeds = [
     {
       name: "알루미늄 (1차 생산)",
       stageCode: StageCode.RAW_MATERIAL,
+      scope: GhgScope.SCOPE_3, // 원자재 채굴·제련은 공급망 배출
       unit: "kgCO2e/kg",
       value: 8.24,
     },
     {
       name: "폴리카보네이트 수지",
       stageCode: StageCode.RAW_MATERIAL,
+      scope: GhgScope.SCOPE_3,
       unit: "kgCO2e/kg",
       value: 3.43,
     },
     {
       name: "공장 전력 (한국 평균)",
       stageCode: StageCode.PRODUCTION,
+      scope: GhgScope.SCOPE_2, // 구입 전력 = Scope 2
       unit: "kgCO2e/kWh",
       value: 0.4567,
     },
     {
       name: "디젤 화물차 (ton-km)",
       stageCode: StageCode.TRANSPORT,
+      scope: GhgScope.SCOPE_3, // 외주 운송 = Scope 3 카테고리4
       unit: "kgCO2e/ton-km",
       value: 0.105,
     },
     {
       name: "사용 단계 전력 (한국 평균)",
       stageCode: StageCode.USE,
+      scope: GhgScope.SCOPE_2, // 고객이 구입한 전력 기준 (편의상 Scope 2 표기, 실제는 Scope 3 cat11 서술 필요)
       unit: "kgCO2e/kWh",
       value: 0.4567,
     },
     {
       name: "전자제품 폐기 (소각·매립 혼합)",
       stageCode: StageCode.END_OF_LIFE,
+      scope: GhgScope.SCOPE_3, // 폐기 = Scope 3 카테고리12
       unit: "kgCO2e/kg",
       value: 0.62,
     },
@@ -69,14 +75,21 @@ async function main() {
   const factors = await Promise.all(
     factorSeeds.map((f) =>
       prisma.emissionFactor.upsert({
-        where: { name_stageCode: { name: f.name, stageCode: f.stageCode } },
+        where: {
+          name_stageCode_version: {
+            name: f.name,
+            stageCode: f.stageCode,
+            version: 1,
+          },
+        },
         update: {
+          scope: f.scope,
           unit: f.unit,
           value: f.value,
           isDemo: true,
           source: DEMO_SOURCE,
         },
-        create: { ...f, isDemo: true, source: DEMO_SOURCE },
+        create: { ...f, version: 1, isDemo: true, source: DEMO_SOURCE },
       }),
     ),
   );

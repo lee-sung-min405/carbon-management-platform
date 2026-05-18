@@ -63,6 +63,7 @@ export async function POST(
             create: result.items.map((it) => ({
               activityId: it.activityId,
               stageCode: it.stageCode,
+              scope: it.scope,
               kgCO2e: it.kgCO2e,
               share: it.share,
             })),

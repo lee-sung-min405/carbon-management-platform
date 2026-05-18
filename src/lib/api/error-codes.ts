@@ -15,6 +15,8 @@ export const API_ERROR_CODES = {
   INVALID_JSON: "INVALID_JSON",
   /** 단계 코드 쿼리 파라미터가 미정의 값. */
   INVALID_STAGE: "INVALID_STAGE",
+  /** GHG Scope 쿼리 파라미터가 미정의 값. */
+  INVALID_SCOPE: "INVALID_SCOPE",
   /** 제품 ID 누락. */
   INVALID_PRODUCT_ID: "INVALID_PRODUCT_ID",
   /** 활동 ID 누락. */

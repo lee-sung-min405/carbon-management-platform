@@ -121,6 +121,7 @@ export function calculateProductPcf(
     return {
       activityId: activity.id,
       stageCode: activity.stageCode,
+      scope: factor.scope,
       kgCO2e: calculateActivityEmission(activity, factor),
       share: 0,
     };

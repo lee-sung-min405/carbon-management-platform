@@ -5,8 +5,9 @@
  * 단계별 합계와 상위 배출 활동 목록을 제공한다.
  */
 
-import type { CalculationItem, StageSummary } from "./types";
+import type { CalculationItem, ScopeSummary, StageSummary } from "./types";
 import { LIFECYCLE_STAGES, type StageCode } from "./stages";
+import { GHG_SCOPES, type GhgScope } from "./scopes";
 
 /**
  * 단계별 배출량과 비율을 집계한다.
@@ -57,4 +58,34 @@ export function getTopEmissionActivities(
   return [...items]
     .sort((a, b) => b.kgCO2e - a.kgCO2e)
     .slice(0, n);
+}
+
+/**
+ * GHG Scope별 배출량과 비율을 집계한다.
+ *
+ * - 반환 순서는 `GHG_SCOPES`(SCOPE_1 → 2 → 3) 순서를 따른다.
+ * - 해당 Scope의 item이 없으면 `kgCO2e: 0`, `share: 0`으로 포함한다
+ *   (Scope 1/2/3 모두 자리를 채워 누락 여부를 시각화하기 위함).
+ * - `share`의 합은 1.0 ± 부동소수 오차. 총합이 0이면 모두 0.
+ *
+ * 소비 예정: C11 대시보드 ScopePieChart, 평가기준 1 보고.
+ */
+export function summarizeByScope(
+  items: readonly CalculationItem[],
+): ScopeSummary[] {
+  const totals = new Map<GhgScope, number>();
+  let grandTotal = 0;
+  for (const item of items) {
+    totals.set(item.scope, (totals.get(item.scope) ?? 0) + item.kgCO2e);
+    grandTotal += item.kgCO2e;
+  }
+
+  return GHG_SCOPES.map(({ code }) => {
+    const kgCO2e = totals.get(code) ?? 0;
+    return {
+      scope: code,
+      kgCO2e,
+      share: grandTotal === 0 ? 0 : kgCO2e / grandTotal,
+    };
+  });
 }

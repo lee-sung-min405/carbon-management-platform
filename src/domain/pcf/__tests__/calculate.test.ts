@@ -27,10 +27,12 @@ function makeFactor(overrides: Partial<EmissionFactor> = {}): EmissionFactor {
     id: "factor-default",
     name: "demo factor",
     stageCode: "RAW_MATERIAL",
+    scope: "SCOPE_3",
     unit: "kgCO2e/kg",
     value: 1,
     source: "DEMO ONLY — not for certification",
     isDemo: true,
+    version: 1,
     ...overrides,
   };
 }
@@ -297,9 +299,9 @@ describe("calculateProductPcf", () => {
 describe("summarizeByStage", () => {
   it("#5 단계별 합계와 share 합이 1.0", () => {
     const items: CalculationItem[] = [
-      { activityId: "a1", stageCode: "RAW_MATERIAL", kgCO2e: 6, share: 0 },
-      { activityId: "a2", stageCode: "RAW_MATERIAL", kgCO2e: 4, share: 0 },
-      { activityId: "a3", stageCode: "USE", kgCO2e: 10, share: 0 },
+      { activityId: "a1", stageCode: "RAW_MATERIAL", scope: "SCOPE_3", kgCO2e: 6, share: 0 },
+      { activityId: "a2", stageCode: "RAW_MATERIAL", scope: "SCOPE_3", kgCO2e: 4, share: 0 },
+      { activityId: "a3", stageCode: "USE", scope: "SCOPE_2", kgCO2e: 10, share: 0 },
     ];
     const summary = summarizeByStage(items);
 
@@ -332,10 +334,10 @@ describe("summarizeByStage", () => {
 
 describe("getTopEmissionActivities", () => {
   const items: CalculationItem[] = [
-    { activityId: "a1", stageCode: "RAW_MATERIAL", kgCO2e: 1, share: 0 },
-    { activityId: "a2", stageCode: "USE", kgCO2e: 50, share: 0 },
-    { activityId: "a3", stageCode: "PRODUCTION", kgCO2e: 20, share: 0 },
-    { activityId: "a4", stageCode: "TRANSPORT", kgCO2e: 5, share: 0 },
+    { activityId: "a1", stageCode: "RAW_MATERIAL", scope: "SCOPE_3", kgCO2e: 1, share: 0 },
+    { activityId: "a2", stageCode: "USE", scope: "SCOPE_2", kgCO2e: 50, share: 0 },
+    { activityId: "a3", stageCode: "PRODUCTION", scope: "SCOPE_2", kgCO2e: 20, share: 0 },
+    { activityId: "a4", stageCode: "TRANSPORT", scope: "SCOPE_3", kgCO2e: 5, share: 0 },
   ];
 
   it("#9 kgCO2e 내림차순 상위 3개를 반환한다", () => {

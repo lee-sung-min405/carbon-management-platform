@@ -20,6 +20,12 @@ enum StageCode {
   END_OF_LIFE
 }
 
+enum GhgScope {
+  SCOPE_1
+  SCOPE_2
+  SCOPE_3
+}
+
 model Product {
   id             String            @id @default(cuid())
   name           String
@@ -35,14 +41,19 @@ model EmissionFactor {
   id         String            @id @default(cuid())
   name       String
   stageCode  StageCode
+  scope      GhgScope          @default(SCOPE_3) // GHG 프로토콜 분류 (Scope 1/2/3)
   unit       String // "kgCO2e/kg", "kgCO2e/kWh", "kgCO2e/ton-km"
   value      Float
   source     String // 데모용 표기 포함 ("DEMO ONLY — not for certification")
   isDemo     Boolean           @default(true)
+  version    Int               @default(1) // 계수 값 변경 이력 (장변 시 +1)
+  validFrom  DateTime          @default(now()) // 이 계수가 적용되는 시작 시점
+  validTo    DateTime? // 장변으로 종료되면 이전 row의 validTo 채움
   activities ProductActivity[]
 
-  @@unique([name, stageCode])
+  @@unique([name, stageCode, version])
   @@index([stageCode])
+  @@index([stageCode, scope])
 }
 
 model ProductActivity {
@@ -85,6 +96,7 @@ model CalculationItem {
   runId      String
   activityId String
   stageCode  StageCode
+  scope      GhgScope       @default(SCOPE_3) // 참조 factor의 scope 스냅샷 (Scope 단위 집계용)
   kgCO2e     Float
   share      Float // 0~1
 

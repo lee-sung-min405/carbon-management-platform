@@ -43,10 +43,12 @@ export function toDomainFactor(
     id: row.id,
     name: row.name,
     stageCode: row.stageCode,
+    scope: row.scope,
     unit: row.unit,
     value: row.value,
     source: row.source,
     isDemo: row.isDemo,
+    version: row.version,
   };
 }
 
@@ -80,10 +82,12 @@ export function buildCalculationSnapshot(
       id: f.id,
       name: f.name,
       stageCode: f.stageCode,
+      scope: f.scope,
       unit: f.unit,
       value: f.value,
       source: f.source,
       isDemo: f.isDemo,
+      version: f.version,
     })),
     calculatedAt: new Date().toISOString(),
   };
