@@ -4,6 +4,7 @@ import {
   calculateActivityEmission,
   calculateProductPcf,
 } from "../calculate";
+import { PcfDomainError } from "../errors";
 import {
   getTopEmissionActivities,
   summarizeByStage,
@@ -148,6 +149,18 @@ describe("calculateActivityEmission", () => {
     expect(() => calculateActivityEmission(activity, factor)).toThrow(
       /Stage mismatch/,
     );
+  });
+
+  it("도메인 가드는 PcfDomainError 인스턴스와 안정 code를 노출한다", () => {
+    const factor = makeFactor({ value: 0.96 });
+    const activity = makeActivity({ amount: -1, factorId: factor.id });
+    try {
+      calculateActivityEmission(activity, factor);
+      throw new Error("expected to throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(PcfDomainError);
+      expect((err as PcfDomainError).code).toBe("NEGATIVE_AMOUNT");
+    }
   });
 });
 

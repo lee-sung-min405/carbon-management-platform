@@ -19,6 +19,7 @@ import type {
   ProductActivity,
 } from "./types";
 import { isTransportStage } from "./stages";
+import { PcfDomainError } from "./errors";
 
 /**
  * 활동 1건의 배출량(kgCO2e)을 계산한다.
@@ -28,7 +29,7 @@ import { isTransportStage } from "./stages";
  * - 그 외 단계는 `amount`가 양수일 때만 유효하다.
  * - `allocationRatio`는 (0, 1] 범위가 아니면 오류.
  *
- * 입력 검증 실패는 `Error`를 throw한다. 상위 레이어(API)에서
+ * 입력 검증 실패는 `PcfDomainError`를 throw한다. 상위 레이어(API)에서
  * Zod 검증으로 사전 차단하는 것을 기본으로 하고, 본 함수는
  * 도메인 단위의 최후 가드레일이다.
  */
@@ -37,20 +38,23 @@ export function calculateActivityEmission(
   factor: EmissionFactor,
 ): number {
   if (activity.factorId !== factor.id) {
-    throw new Error(
+    throw new PcfDomainError(
+      "FACTOR_MISMATCH",
       `Factor mismatch: activity ${activity.id} expects ${activity.factorId} but got ${factor.id}`,
     );
   }
 
   if (activity.stageCode !== factor.stageCode) {
-    throw new Error(
+    throw new PcfDomainError(
+      "FACTOR_STAGE_MISMATCH",
       `Stage mismatch: activity ${activity.id} stage=${activity.stageCode} vs factor ${factor.id} stage=${factor.stageCode}`,
     );
   }
 
   const ratio = activity.allocationRatio;
   if (!(ratio > 0 && ratio <= 1)) {
-    throw new Error(
+    throw new PcfDomainError(
+      "INVALID_ALLOCATION",
       `Invalid allocationRatio for activity ${activity.id}: ${ratio}`,
     );
   }
@@ -58,12 +62,14 @@ export function calculateActivityEmission(
   if (isTransportStage(activity.stageCode)) {
     const { weightKg, distanceKm } = activity;
     if (weightKg == null || distanceKm == null) {
-      throw new Error(
+      throw new PcfDomainError(
+        "INVALID_TRANSPORT",
         `TRANSPORT activity ${activity.id} requires weightKg and distanceKm`,
       );
     }
     if (weightKg <= 0 || distanceKm <= 0) {
-      throw new Error(
+      throw new PcfDomainError(
+        "INVALID_TRANSPORT",
         `TRANSPORT activity ${activity.id} requires positive weightKg and distanceKm`,
       );
     }
@@ -72,7 +78,8 @@ export function calculateActivityEmission(
   }
 
   if (!(activity.amount > 0)) {
-    throw new Error(
+    throw new PcfDomainError(
+      "NEGATIVE_AMOUNT",
       `Activity ${activity.id} requires positive amount`,
     );
   }
@@ -96,7 +103,8 @@ export function calculateProductPcf(
   const rawItems: CalculationItem[] = activities.map((activity) => {
     const factor = factorMap.get(activity.factorId);
     if (!factor) {
-      throw new Error(
+      throw new PcfDomainError(
+        "FACTOR_NOT_FOUND",
         `Missing emission factor ${activity.factorId} for activity ${activity.id}`,
       );
     }
