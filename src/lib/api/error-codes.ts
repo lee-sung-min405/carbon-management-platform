@@ -44,6 +44,11 @@ export const API_ERROR_CODES = {
   /** 계산할 활동이 0건. */
   NO_ACTIVITIES: "NO_ACTIVITIES",
 
+  /** CSV 본문 파싱 실패 (헤더 누락 / 컬럼 수 불일치 / 단위 mismatch 등). */
+  CSV_PARSE_ERROR: "CSV_PARSE_ERROR",
+  /** 지원하지 않는 Content-Type (application/json | text/csv 외). */
+  UNSUPPORTED_MEDIA_TYPE: "UNSUPPORTED_MEDIA_TYPE",
+
   /** 분류되지 않은 서버 오류 (500). */
   INTERNAL_ERROR: "INTERNAL_ERROR",
 } as const;

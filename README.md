@@ -100,6 +100,7 @@ src/
 | POST   | `/products`                            | 제품 생성 `{name, sku?, functionalUnit, description?}` | `INVALID_JSON`, `VALIDATION_ERROR`, `SKU_CONFLICT`                                                              |
 | GET    | `/products/:id`                        | 제품 단건 (활동 + 마지막 run)                          | `INVALID_PRODUCT_ID`, `PRODUCT_NOT_FOUND`                                                                       |
 | POST   | `/products/:id/activities`             | 활동 추가                                              | `INVALID_JSON`, `VALIDATION_ERROR`, `PRODUCT_NOT_FOUND`, `FACTOR_NOT_FOUND`, `FACTOR_STAGE_MISMATCH`            |
+| POST   | `/products/:id/activities/bulk`        | 활동 일괄 임포트 (JSON 또는 `text/csv`, `?mode=append｜replace`) | `INVALID_JSON`, `VALIDATION_ERROR`, `CSV_PARSE_ERROR`, `UNSUPPORTED_MEDIA_TYPE`, `FACTOR_NOT_FOUND`, `FACTOR_STAGE_MISMATCH` |
 | PUT    | `/activities/:id`                      | 활동 수정                                              | `INVALID_ACTIVITY_ID`, `VALIDATION_ERROR`, `FACTOR_NOT_FOUND`, `FACTOR_STAGE_MISMATCH`, `ACTIVITY_NOT_FOUND`    |
 | DELETE | `/activities/:id`                      | 활동 삭제                                              | `INVALID_ACTIVITY_ID`, `ACTIVITY_NOT_FOUND`                                                                     |
 | POST   | `/products/:id/calculate`              | PCF 계산 + `CalculationRun` 저장                       | `PRODUCT_NOT_FOUND`, `NO_ACTIVITIES`, `FACTOR_MISMATCH`, `FACTOR_STAGE_MISMATCH`, `NEGATIVE_AMOUNT`, `INVALID_ALLOCATION`, `INVALID_TRANSPORT` |
@@ -164,6 +165,11 @@ curl -s localhost:3000/api/products | jq
 PID=$(curl -s localhost:3000/api/products | jq -r '.data[] | select(.sku=="CT-045") | .id')
 curl -s -X POST localhost:3000/api/products/$PID/calculate | jq
 #   → totalKgCO2e: 11072.724 (자료 표 수기 합산과 일치)
+
+# 자료 CSV 일괄 임포트 — mode=replace는 멱등 재임포트
+curl -s -X POST "localhost:3000/api/products/$PID/activities/bulk?mode=replace" \
+  -H "Content-Type: text/csv" --data-binary @docs/sample-ct045.csv | jq
+#   → {"data":{"inserted":30,"mode":"replace","productId":"..."}}
 
 # 이력
 curl -s "localhost:3000/api/products/$PID/calculation-runs?include=items" | jq

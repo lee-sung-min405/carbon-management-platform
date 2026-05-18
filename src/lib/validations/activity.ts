@@ -88,3 +88,24 @@ export const ActivityInput = z
   });
 
 export type ActivityInput = z.infer<typeof ActivityInput>;
+
+/**
+ * 활동 일괄 입력 Zod 스키마 (R17 bulk import).
+ *
+ * - `items`: 1~500건 제한 (과제 자료 30행 + 여유).
+ * - `mode`:
+ *   · `"append"` (기본): 기존 활동을 유지하고 새 항목만 추가.
+ *   · `"replace"`: 트랜잭션 안에서 해당 제품의 기존 활동을 모두 삭제한 뒤 새로 삽입.
+ *     멱등 임포트(같은 CSV를 두 번 올려도 결과 동일) 시연용.
+ *
+ * CSV 업로드 경로(`text/csv`)는 본 스키마를 거치지 않고 별도 파서를 사용한다.
+ */
+export const ActivityBulkInput = z.object({
+  items: z
+    .array(ActivityInput)
+    .min(1, "최소 1건 이상의 활동을 입력해주세요.")
+    .max(500, "한 번에 임포트할 수 있는 활동은 최대 500건입니다."),
+  mode: z.enum(["append", "replace"]).default("append"),
+});
+
+export type ActivityBulkInput = z.infer<typeof ActivityBulkInput>;
