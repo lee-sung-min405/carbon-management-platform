@@ -132,6 +132,23 @@ describe("calculateActivityEmission", () => {
       /weightKg and distanceKm/,
     );
   });
+
+  it("활동 단계와 계수 단계가 다르면 거부한다 (도메인 가드)", () => {
+    const factor = makeFactor({
+      id: "f-transport",
+      stageCode: "TRANSPORT",
+      unit: "kgCO2e/ton-km",
+      value: 0.1,
+    });
+    const activity = makeActivity({
+      stageCode: "RAW_MATERIAL",
+      amount: 1,
+      factorId: factor.id,
+    });
+    expect(() => calculateActivityEmission(activity, factor)).toThrow(
+      /Stage mismatch/,
+    );
+  });
 });
 
 describe("calculateProductPcf", () => {

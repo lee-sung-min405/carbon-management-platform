@@ -42,6 +42,12 @@ export function calculateActivityEmission(
     );
   }
 
+  if (activity.stageCode !== factor.stageCode) {
+    throw new Error(
+      `Stage mismatch: activity ${activity.id} stage=${activity.stageCode} vs factor ${factor.id} stage=${factor.stageCode}`,
+    );
+  }
+
   const ratio = activity.allocationRatio;
   if (!(ratio > 0 && ratio <= 1)) {
     throw new Error(
