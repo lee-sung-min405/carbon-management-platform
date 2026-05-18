@@ -33,6 +33,22 @@ export const LIFECYCLE_STAGES: readonly LifeCycleStage[] = [
   { code: "END_OF_LIFE", label: "폐기", order: 5 },
 ] as const;
 
+/**
+ * 단계 코드만 모은 tuple. Zod `z.enum()`이 비어있지 않은 tuple을 요구하므로
+ * 명시적으로 5원소 tuple로 표기한다. 단계가 추가/제거되면 본 tuple과
+ * `LIFECYCLE_STAGES`를 함께 수정해야 한다 (TypeScript가 강제하지 못함).
+ */
+export const STAGE_CODES = [
+  "RAW_MATERIAL",
+  "PRODUCTION",
+  "TRANSPORT",
+  "USE",
+  "END_OF_LIFE",
+] as const satisfies readonly StageCode[];
+
+/** 단계 코드 존재 여부를 O(1)로 검사하기 위한 집합. */
+export const STAGE_CODE_SET: ReadonlySet<StageCode> = new Set(STAGE_CODES);
+
 const STAGE_BY_CODE: ReadonlyMap<StageCode, LifeCycleStage> = new Map(
   LIFECYCLE_STAGES.map((s) => [s.code, s]),
 );

@@ -1,9 +1,7 @@
 import type { StageCode } from "@/domain/pcf/stages";
-import { LIFECYCLE_STAGES } from "@/domain/pcf/stages";
+import { STAGE_CODE_SET } from "@/domain/pcf/stages";
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
-
-const STAGE_CODES = new Set<StageCode>(LIFECYCLE_STAGES.map((s) => s.code));
 
 /**
  * GET /api/emission-factors?stage=TRANSPORT
@@ -12,7 +10,7 @@ const STAGE_CODES = new Set<StageCode>(LIFECYCLE_STAGES.map((s) => s.code));
 export async function GET(request: Request) {
   const stageParam = new URL(request.url).searchParams.get("stage");
 
-  if (stageParam && !STAGE_CODES.has(stageParam as StageCode)) {
+  if (stageParam && !STAGE_CODE_SET.has(stageParam as StageCode)) {
     return fail(400, `알 수 없는 단계 코드: ${stageParam}`);
   }
 

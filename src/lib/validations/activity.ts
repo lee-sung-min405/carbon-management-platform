@@ -1,14 +1,6 @@
 import { z } from "zod";
 
-import { LIFECYCLE_STAGES } from "@/domain/pcf/stages";
-
-const STAGE_CODES = LIFECYCLE_STAGES.map((s) => s.code) as [
-  "RAW_MATERIAL",
-  "PRODUCTION",
-  "TRANSPORT",
-  "USE",
-  "END_OF_LIFE",
-];
+import { STAGE_CODES } from "@/domain/pcf/stages";
 
 /**
  * ProductActivity 입력 Zod 스키마.
