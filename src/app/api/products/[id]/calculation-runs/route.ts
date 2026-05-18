@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
+import { API_ERROR_CODES } from "@/lib/api/error-codes";
 import { requireProduct } from "@/lib/api/handlers";
 
 /**
@@ -33,6 +34,8 @@ export async function GET(
       `[GET /api/products/${productId}/calculation-runs] failed`,
       err,
     );
-    return fail(500, "계산 이력을 불러오지 못했습니다.");
+    return fail(500, "계산 이력을 불러오지 못했습니다.", {
+      code: API_ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 }

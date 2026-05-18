@@ -44,7 +44,7 @@ total     :  Σ item.kgCO2e         // 부동소수 누적 오차 회피 위해 
 share     :  item.kgCO2e / total   // total=0 이면 0
 ```
 
-도메인 가드레일: factor 누락 / 단계 불일치 / `allocationRatio ∉ (0,1]` / `amount<=0` (TRANSPORT 제외) / TRANSPORT `weightKg|distanceKm` 누락 → `Error` throw. 라우트 레이어에서 400으로 변환한다.
+도메인 가드레일: factor 누락 / 단계 불일치 / `allocationRatio ∉ (0,1]` / `amount<=0` (TRANSPORT 제외) / TRANSPORT `weightKg|distanceKm` 누락 → `PcfDomainError(code, message)` throw. 라우트 레이어는 `code` 를 그대로 전파하며 400으로 변환한다.
 
 ### 2.3 영속 모델 (`prisma/schema.prisma`)
 
@@ -94,20 +94,22 @@ src/
 
 기본 URL: `http://localhost:3000/api`. 모든 응답은 envelope.
 
-| Method | Path                                   | 설명                                                   | 주요 에러 코드                                                  |
-| ------ | -------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------- |
-| GET    | `/products`                            | 제품 목록 (활동 수 / 마지막 run 포함)                  | —                                                               |
-| POST   | `/products`                            | 제품 생성 `{name, sku?, functionalUnit, description?}` | `VALIDATION_ERROR`, `SKU_CONFLICT`                              |
-| GET    | `/products/:id`                        | 제품 단건 (활동 + 마지막 run)                          | (404)                                                           |
-| PUT    | `/products/:id`                        | 제품 수정                                              | `VALIDATION_ERROR`, `SKU_CONFLICT`                              |
-| DELETE | `/products/:id`                        | 제품 삭제 (활동·run cascade)                           | (404)                                                           |
-| POST   | `/products/:id/activities`             | 활동 추가                                              | `VALIDATION_ERROR`, `FACTOR_NOT_FOUND`, `FACTOR_STAGE_MISMATCH` |
-| PUT    | `/products/:id/activities/:activityId` | 활동 수정                                              | 동상                                                            |
-| DELETE | `/products/:id/activities/:activityId` | 활동 삭제                                              | (404)                                                           |
-| POST   | `/products/:id/calculate`              | PCF 계산 + `CalculationRun` 저장                       | `NO_ACTIVITIES`, `CALCULATION_ERROR`                            |
-| GET    | `/products/:id/calculation-runs`       | 계산 이력 (`?include=items`로 명세 포함)               | —                                                               |
-| GET    | `/emission-factors`                    | 배출계수 목록 (`?stage=PRODUCTION` 필터)               | (400 — 잘못된 stage)                                            |
-| GET    | `/lifecycle-stages`                    | 단계 메타 (UI 셀렉터)                                  | —                                                               |
+| Method | Path                                   | 설명                                                   | 주요 에러 코드                                                                                                  |
+| ------ | -------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| GET    | `/products`                            | 제품 목록 (활동 수 / 마지막 run 포함)                  | `INTERNAL_ERROR`                                                                                                |
+| POST   | `/products`                            | 제품 생성 `{name, sku?, functionalUnit, description?}` | `INVALID_JSON`, `VALIDATION_ERROR`, `SKU_CONFLICT`                                                              |
+| GET    | `/products/:id`                        | 제품 단건 (활동 + 마지막 run)                          | `INVALID_PRODUCT_ID`, `PRODUCT_NOT_FOUND`                                                                       |
+| PUT    | `/products/:id`                        | 제품 수정                                              | `VALIDATION_ERROR`, `SKU_CONFLICT`                                                                              |
+| DELETE | `/products/:id`                        | 제품 삭제 (활동·run cascade)                           | `PRODUCT_NOT_FOUND`                                                                                             |
+| POST   | `/products/:id/activities`             | 활동 추가                                              | `INVALID_JSON`, `VALIDATION_ERROR`, `PRODUCT_NOT_FOUND`, `FACTOR_NOT_FOUND`, `FACTOR_STAGE_MISMATCH`            |
+| PUT    | `/products/:id/activities/:activityId` | 활동 수정                                              | `INVALID_ACTIVITY_ID`, `VALIDATION_ERROR`, `FACTOR_NOT_FOUND`, `FACTOR_STAGE_MISMATCH`, `ACTIVITY_NOT_FOUND`    |
+| DELETE | `/products/:id/activities/:activityId` | 활동 삭제                                              | `INVALID_ACTIVITY_ID`, `ACTIVITY_NOT_FOUND`                                                                     |
+| POST   | `/products/:id/calculate`              | PCF 계산 + `CalculationRun` 저장                       | `PRODUCT_NOT_FOUND`, `NO_ACTIVITIES`, `FACTOR_MISMATCH`, `FACTOR_STAGE_MISMATCH`, `NEGATIVE_AMOUNT`, `INVALID_ALLOCATION`, `INVALID_TRANSPORT` |
+| GET    | `/products/:id/calculation-runs`       | 계산 이력 (`?include=items`로 명세 포함)               | `PRODUCT_NOT_FOUND`, `INTERNAL_ERROR`                                                                           |
+| GET    | `/emission-factors`                    | 배출계수 목록 (`?stage=PRODUCTION` 필터)               | `INVALID_STAGE`, `INTERNAL_ERROR`                                                                               |
+| GET    | `/lifecycle-stages`                    | 단계 메타 (UI 셀렉터)                                  | —                                                                                                               |
+
+전체 에러 코드 카탈로그는 [src/lib/api/error-codes.ts](src/lib/api/error-codes.ts)에 단일 정의로 모아 두었다. 라우트는 반드시 `API_ERROR_CODES.X`를 통해 `code` 를 부여한다.
 
 응답 봉투 예:
 

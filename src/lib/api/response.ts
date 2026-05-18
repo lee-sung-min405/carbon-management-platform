@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
+import { API_ERROR_CODES } from "./error-codes";
+
 /**
  * 모든 API 응답의 공통 봉투(envelope).
  * 클라이언트는 항상 `{ data }` 또는 `{ error }` 둘 중 하나만 받는다.
@@ -33,7 +35,7 @@ export function failFromZod(err: ZodError): NextResponse {
     (fields[key] ??= []).push(issue.message);
   }
   return fail(400, "입력값이 올바르지 않습니다.", {
-    code: "VALIDATION_ERROR",
+    code: API_ERROR_CODES.VALIDATION_ERROR,
     fields,
   });
 }

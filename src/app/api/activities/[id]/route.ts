@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { ActivityInput } from "@/lib/validations/activity";
 import { fail, failFromZod, ok } from "@/lib/api/response";
+import { API_ERROR_CODES } from "@/lib/api/error-codes";
 import {
   handlePrismaError,
   parseJsonBody,
@@ -17,7 +18,10 @@ export async function PUT(
   { params }: { params: { id: string } },
 ) {
   const id = params.id;
-  if (!id) return fail(400, "활동 ID가 필요합니다.");
+  if (!id)
+    return fail(400, "활동 ID가 필요합니다.", {
+      code: API_ERROR_CODES.INVALID_ACTIVITY_ID,
+    });
 
   const bodyResult = await parseJsonBody(request);
   if (!bodyResult.ok) return bodyResult.response;
@@ -39,7 +43,10 @@ export async function PUT(
     return handlePrismaError(
       err,
       "활동을 수정하지 못했습니다.",
-      "해당 활동을 찾을 수 없습니다.",
+      {
+        message: "해당 활동을 찾을 수 없습니다.",
+        code: API_ERROR_CODES.ACTIVITY_NOT_FOUND,
+      },
     );
   }
 }
@@ -52,7 +59,10 @@ export async function DELETE(
   { params }: { params: { id: string } },
 ) {
   const id = params.id;
-  if (!id) return fail(400, "활동 ID가 필요합니다.");
+  if (!id)
+    return fail(400, "활동 ID가 필요합니다.", {
+      code: API_ERROR_CODES.INVALID_ACTIVITY_ID,
+    });
 
   try {
     await prisma.productActivity.delete({ where: { id } });
@@ -61,7 +71,10 @@ export async function DELETE(
     return handlePrismaError(
       err,
       "활동을 삭제하지 못했습니다.",
-      "해당 활동을 찾을 수 없습니다.",
+      {
+        message: "해당 활동을 찾을 수 없습니다.",
+        code: API_ERROR_CODES.ACTIVITY_NOT_FOUND,
+      },
     );
   }
 }

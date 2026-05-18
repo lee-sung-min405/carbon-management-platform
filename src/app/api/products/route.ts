@@ -2,6 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { ProductCreateInput } from "@/lib/validations/product";
 import { failFromZod, fail, ok } from "@/lib/api/response";
+import { API_ERROR_CODES } from "@/lib/api/error-codes";
 
 /**
  * GET /api/products
@@ -36,7 +37,9 @@ export async function GET() {
     return ok(data);
   } catch (err) {
     console.error("[GET /api/products] failed", err);
-    return fail(500, "제품 목록을 불러오지 못했습니다.");
+    return fail(500, "제품 목록을 불러오지 못했습니다.", {
+      code: API_ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 }
 
@@ -49,7 +52,9 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return fail(400, "요청 본문(JSON)을 파싱할 수 없습니다.");
+    return fail(400, "요청 본문(JSON)을 파싱할 수 없습니다.", {
+      code: API_ERROR_CODES.INVALID_JSON,
+    });
   }
 
   const parsed = ProductCreateInput.safeParse(body);
@@ -63,9 +68,13 @@ export async function POST(request: Request) {
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === "P2002"
     ) {
-      return fail(409, "이미 사용 중인 SKU입니다.", { code: "SKU_CONFLICT" });
+      return fail(409, "이미 사용 중인 SKU입니다.", {
+        code: API_ERROR_CODES.SKU_CONFLICT,
+      });
     }
     console.error("[POST /api/products] failed", err);
-    return fail(500, "제품을 생성하지 못했습니다.");
+    return fail(500, "제품을 생성하지 못했습니다.", {
+      code: API_ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 }

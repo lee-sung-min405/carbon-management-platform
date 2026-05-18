@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { fail, ok } from "@/lib/api/response";
+import { API_ERROR_CODES } from "@/lib/api/error-codes";
 import { requireProduct } from "@/lib/api/handlers";
 import {
   buildCalculationSnapshot,
@@ -77,6 +78,8 @@ export async function POST(
       return fail(400, err.message, { code: err.code });
     }
     console.error(`[POST /api/products/${productId}/calculate] failed`, err);
-    return fail(500, "PCF 계산에 실패했습니다.");
+    return fail(500, "PCF 계산에 실패했습니다.", {
+      code: API_ERROR_CODES.INTERNAL_ERROR,
+    });
   }
 }

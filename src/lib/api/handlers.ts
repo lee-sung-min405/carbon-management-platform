@@ -4,6 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 import type { StageCode } from "@/domain/pcf/stages";
 import { prisma } from "@/lib/db";
 import { fail } from "@/lib/api/response";
+import { API_ERROR_CODES, type ApiErrorCode } from "@/lib/api/error-codes";
 import type { ActivityInput } from "@/lib/validations/activity";
 
 /**
@@ -29,7 +30,9 @@ export async function parseJsonBody(
   } catch {
     return {
       ok: false,
-      response: fail(400, "요청 본문(JSON)을 파싱할 수 없습니다."),
+      response: fail(400, "요청 본문(JSON)을 파싱할 수 없습니다.", {
+        code: API_ERROR_CODES.INVALID_JSON,
+      }),
     };
   }
 }
@@ -39,14 +42,24 @@ export async function requireProduct(
   productId: string,
 ): Promise<HandlerResult<{ product: { id: string } }>> {
   if (!productId) {
-    return { ok: false, response: fail(400, "제품 ID가 필요합니다.") };
+    return {
+      ok: false,
+      response: fail(400, "제품 ID가 필요합니다.", {
+        code: API_ERROR_CODES.INVALID_PRODUCT_ID,
+      }),
+    };
   }
   const product = await prisma.product.findUnique({
     where: { id: productId },
     select: { id: true },
   });
   if (!product) {
-    return { ok: false, response: fail(404, "해당 제품을 찾을 수 없습니다.") };
+    return {
+      ok: false,
+      response: fail(404, "해당 제품을 찾을 수 없습니다.", {
+        code: API_ERROR_CODES.PRODUCT_NOT_FOUND,
+      }),
+    };
   }
   return { ok: true, product };
 }
@@ -64,7 +77,7 @@ export async function validateFactorForStage(
     return {
       ok: false,
       response: fail(400, "선택한 배출계수를 찾을 수 없습니다.", {
-        code: "FACTOR_NOT_FOUND",
+        code: API_ERROR_CODES.FACTOR_NOT_FOUND,
         fields: { factorId: ["배출계수가 존재하지 않습니다."] },
       }),
     };
@@ -76,7 +89,7 @@ export async function validateFactorForStage(
         400,
         "배출계수의 단계가 활동 단계와 일치하지 않습니다.",
         {
-          code: "FACTOR_STAGE_MISMATCH",
+          code: API_ERROR_CODES.FACTOR_STAGE_MISMATCH,
           fields: {
             factorId: [`선택한 계수는 ${factor.stageCode} 단계용입니다.`],
           },
@@ -89,22 +102,29 @@ export async function validateFactorForStage(
 
 /**
  * Prisma 예외 → 표준 API 응답.
- * - P2025 (Record not found) → 404
- * - 그 외 → 500 (콘솔에 로그)
+ * - P2025 (Record not found) → 404 + `notFoundCode`
+ * - 그 외 → 500 + `INTERNAL_ERROR` (콘솔에 로그)
  */
 export function handlePrismaError(
   err: unknown,
   fallbackMessage: string,
-  notFoundMessage = "해당 리소스를 찾을 수 없습니다.",
+  notFoundOpts: {
+    message?: string;
+    code?: ApiErrorCode;
+  } = {},
 ): NextResponse {
   if (
     err instanceof Prisma.PrismaClientKnownRequestError &&
     err.code === "P2025"
   ) {
-    return fail(404, notFoundMessage);
+    return fail(
+      404,
+      notFoundOpts.message ?? "해당 리소스를 찾을 수 없습니다.",
+      notFoundOpts.code ? { code: notFoundOpts.code } : undefined,
+    );
   }
   console.error(`[handlePrismaError] ${fallbackMessage}`, err);
-  return fail(500, fallbackMessage);
+  return fail(500, fallbackMessage, { code: API_ERROR_CODES.INTERNAL_ERROR });
 }
 
 /**
