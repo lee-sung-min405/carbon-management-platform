@@ -21,7 +21,10 @@ export async function GET(
       where: { id },
       include: {
         activities: {
-          orderBy: { stageCode: "asc" },
+          orderBy: [
+            { occurredOn: { sort: "asc", nulls: "last" } },
+            { stageCode: "asc" },
+          ],
           include: {
             factor: {
               select: {

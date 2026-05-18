@@ -63,6 +63,8 @@ export interface ProductActivity {
   weightKg?: number | null;
   /** TRANSPORT 전용. 단위 km. */
   distanceKm?: number | null;
+  /** 활동 발생일 (자료 임포트/시계열 차트용). 시스템 입력 시각인 `createdAt`과 구분. */
+  occurredOn?: Date | null;
   note?: string | null;
 }
 

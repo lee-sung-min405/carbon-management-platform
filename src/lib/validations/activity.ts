@@ -39,6 +39,10 @@ export const ActivityInput = z
       .number()
       .positive("거리(km)는 0보다 커야 합니다.")
       .optional(),
+    occurredOn: z
+      .union([z.coerce.date(), z.null()])
+      .optional()
+      .transform((v) => (v == null ? undefined : v)),
     note: z
       .union([z.string().trim(), z.literal("")])
       .optional()

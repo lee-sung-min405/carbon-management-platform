@@ -129,4 +129,25 @@ describe("ActivityInput", () => {
   it("알 수 없는 stageCode → 실패", () => {
     expect(failedPaths(base({ stageCode: "BOGUS" }))).toContain("stageCode");
   });
+
+  it("occurredOn: ISO 문자열 → Date 로 coerce", () => {
+    const result = ActivityInput.safeParse(
+      base({ occurredOn: "2025-05-01" }),
+    );
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.occurredOn).toBeInstanceOf(Date);
+      expect(result.data.occurredOn?.toISOString().slice(0, 10)).toBe(
+        "2025-05-01",
+      );
+    }
+  });
+
+  it("occurredOn: 누락 → undefined (기본값)", () => {
+    const result = ActivityInput.safeParse(base());
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.occurredOn).toBeUndefined();
+    }
+  });
 });

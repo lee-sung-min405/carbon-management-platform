@@ -31,6 +31,7 @@ export function toDomainActivity(
     allocationRatio: row.allocationRatio,
     weightKg: row.weightKg,
     distanceKm: row.distanceKm,
+    occurredOn: row.occurredOn,
     note: row.note,
   };
 }
@@ -72,6 +73,7 @@ export function buildCalculationSnapshot(
       allocationRatio: a.allocationRatio,
       weightKg: a.weightKg ?? null,
       distanceKm: a.distanceKm ?? null,
+      occurredOn: a.occurredOn ? a.occurredOn.toISOString() : null,
       note: a.note ?? null,
     })),
     factors: factors.map((f) => ({

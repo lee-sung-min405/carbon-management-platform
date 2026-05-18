@@ -130,6 +130,7 @@ export function handlePrismaError(
 /**
  * `ActivityInput` → Prisma create/update payload (productId 제외).
  * TRANSPORT 가 아닌 단계에서는 weightKg/distanceKm 를 null 로 강제한다.
+ * `occurredOn` 은 nullable 파스스루.
  */
 export function toActivityWriteData(input: ActivityInput) {
   const isTransport = input.stageCode === "TRANSPORT";
@@ -142,6 +143,7 @@ export function toActivityWriteData(input: ActivityInput) {
     allocationRatio: input.allocationRatio,
     weightKg: isTransport ? input.weightKg ?? null : null,
     distanceKm: isTransport ? input.distanceKm ?? null : null,
+    occurredOn: input.occurredOn ?? null,
     note: input.note ?? null,
   };
 }

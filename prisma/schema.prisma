@@ -51,18 +51,20 @@ model ProductActivity {
   productId       String
   stageCode       StageCode
   name            String
-  amount          Float // 비-운송: 활동량 / 운송: 0 또는 사전계산 ton-km
+  amount          Float // 비-운송: 활동량 / 운송: ton-km 직접 또는 0(파생 모드)
   unit            String
   factor          EmissionFactor @relation(fields: [factorId], references: [id])
   factorId        String
   allocationRatio Float          @default(1.0) // 0 < x <= 1
-  weightKg        Float? // TRANSPORT 전용
-  distanceKm      Float? // TRANSPORT 전용
+  weightKg        Float? // TRANSPORT 파생 모드 전용
+  distanceKm      Float? // TRANSPORT 파생 모드 전용
+  occurredOn      DateTime?      @db.Date // 활동 발생일 (자료 임포트/시계열 차트용)
   note            String?
   createdAt       DateTime       @default(now())
 
   @@index([productId])
   @@index([factorId])
+  @@index([productId, occurredOn])
 }
 
 model CalculationRun {
