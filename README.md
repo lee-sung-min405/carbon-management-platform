@@ -157,6 +157,14 @@ src/
 3. **응답 봉투는 단 하나** — `{ data } | { error: { message, code?, fields? } }`. 클라이언트(`apiFetch`)는 이 모양 외에는 알지 못한다.
 4. **에러 코드는 식별자**. 사용자용 한글 메시지와 분리해 클라이언트 분기에 사용한다.
 
+
+
+> 기계 판독용 명세: [docs/openapi.yaml](docs/openapi.yaml) (OpenAPI 3.1)
+>
+> - **시각적 미리보기**: `npx @redocly/cli build-docs docs/openapi.yaml` 실행 후 생성되는 `redoc-static.html` 파일을 브라우저에서 열면 전체 API 명세를 쉽게 탐색할 수 있습니다.
+> - **Swagger Editor**: https://editor.swagger.io/ 에서 openapi.yaml 파일을 복사해 붙여넣어도 웹에서 바로 확인 가능합니다.
+> - (이미 생성된 HTML: [redoc-static.html](redoc-static.html) 포함)
+
 ## 4. API 명세
 
 기본 URL: `http://localhost:3000/api`. 모든 응답은 envelope.

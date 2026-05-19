@@ -1,0 +1,492 @@
+openapi: 3.1.0
+info:
+  title: Carbon Management Platform API
+  version: 0.1.0
+  description: |
+    제품 탄소발자국(PCF) 계산 SaaS API. 모든 응답은 envelope {data|error}.
+    실제 구현 라우트/스키마/에러코드에 1:1 매핑.
+servers:
+  - url: http://localhost:3000/api
+paths:
+  /products:
+    get:
+      summary: 제품 목록 조회
+      responses:
+        '200':
+          description: 제품 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListEnvelope'
+    post:
+      summary: 제품 생성
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductEnvelope'
+        '400':
+          description: 입력 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /products/{id}:
+    get:
+      summary: 제품 단건 + 활동 + 최근 run
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 제품 상세
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetailEnvelope'
+        '404':
+          description: 제품 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    patch:
+      summary: 제품 정보 수정 (미구현)
+      responses:
+        '501':
+          description: 미구현
+  /products/{id}/activities:
+    post:
+      summary: 활동 추가
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivityInput'
+      responses:
+        '201':
+          description: 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityEnvelope'
+        '400':
+          description: 입력 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /products/{id}/activities/bulk:
+    post:
+      summary: 활동 일괄 임포트 (JSON, CSV, XLSX)
+      parameters:
+        - in: query
+          name: mode
+          schema:
+            type: string
+            enum: [append, replace]
+          description: 적재 모드 (append=추가, replace=전체 교체)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivityBulkInput'
+          text/csv:
+            schema:
+              type: string
+              format: csv
+          application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '201':
+          description: 임포트 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkImportEnvelope'
+        '400':
+          description: 입력 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /products/{id}/calculate:
+    post:
+      summary: 제품 PCF 계산 실행
+      responses:
+        '201':
+          description: 계산 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculationRunEnvelope'
+        '400':
+          description: 입력 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /products/{id}/calculation-runs:
+    get:
+      summary: 계산 이력 조회
+      parameters:
+        - in: query
+          name: include
+          schema:
+            type: string
+            enum: [items]
+          description: 항목 포함 여부
+      responses:
+        '200':
+          description: 계산 이력
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculationRunListEnvelope'
+  /activities/{id}:
+    put:
+      summary: 활동 수정
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivityInput'
+      responses:
+        '200':
+          description: 수정 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityEnvelope'
+        '400':
+          description: 입력 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    delete:
+      summary: 활동 삭제
+      responses:
+        '204':
+          description: 삭제 성공
+        '404':
+          description: 활동 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /emission-factors:
+    get:
+      summary: 배출계수 목록
+      parameters:
+        - in: query
+          name: stage
+          schema:
+            type: string
+        - in: query
+          name: scope
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 계수 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmissionFactorListEnvelope'
+  /lifecycle-stages:
+    get:
+      summary: 라이프사이클 단계 메타
+      responses:
+        '200':
+          description: 단계 목록
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LifecycleStageListEnvelope'
+  /health:
+    get:
+      summary: 헬스체크 (프로세스+DB)
+      responses:
+        '200':
+          description: 정상
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthEnvelope'
+        '503':
+          description: DB 연결 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    ProductListEnvelope:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+    ProductEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Product'
+    ProductDetailEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/ProductDetail'
+    ActivityEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/ProductActivity'
+    BulkImportEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            inserted:
+              type: integer
+            mode:
+              type: string
+            productId:
+              type: string
+    CalculationRunEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/CalculationRun'
+    CalculationRunListEnvelope:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalculationRun'
+    EmissionFactorListEnvelope:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmissionFactor'
+    LifecycleStageListEnvelope:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/LifecycleStage'
+    HealthEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+            db:
+              type: string
+            version:
+              type: string
+            uptimeSec:
+              type: integer
+    ErrorEnvelope:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+            code:
+              type: string
+            fields:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        sku:
+          type: string
+        functionalUnit:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    ProductDetail:
+      allOf:
+        - $ref: '#/components/schemas/Product'
+        - type: object
+          properties:
+            activities:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProductActivity'
+            lastRun:
+              $ref: '#/components/schemas/CalculationRun'
+    ProductInput:
+      type: object
+      properties:
+        name:
+          type: string
+        sku:
+          type: string
+        functionalUnit:
+          type: string
+        description:
+          type: string
+    ActivityInput:
+      type: object
+      properties:
+        name:
+          type: string
+        amount:
+          type: number
+        unit:
+          type: string
+        factorId:
+          type: string
+        allocationRatio:
+          type: number
+        weightKg:
+          type: number
+        distanceKm:
+          type: number
+        occurredOn:
+          type: string
+          format: date
+        note:
+          type: string
+    ActivityBulkInput:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityInput'
+        mode:
+          type: string
+          enum: [append, replace]
+    ProductActivity:
+      type: object
+      properties:
+        id:
+          type: string
+        productId:
+          type: string
+        stageCode:
+          type: string
+        name:
+          type: string
+        amount:
+          type: number
+        unit:
+          type: string
+        factorId:
+          type: string
+        allocationRatio:
+          type: number
+        weightKg:
+          type: number
+        distanceKm:
+          type: number
+        occurredOn:
+          type: string
+          format: date
+        note:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    CalculationRun:
+      type: object
+      properties:
+        id:
+          type: string
+        productId:
+          type: string
+        totalKgCO2e:
+          type: number
+        snapshotJson:
+          type: object
+        runAt:
+          type: string
+          format: date-time
+    CalculationItem:
+      type: object
+      properties:
+        id:
+          type: string
+        runId:
+          type: string
+        activityId:
+          type: string
+        stageCode:
+          type: string
+        scope:
+          type: string
+        kgCO2e:
+          type: number
+        share:
+          type: number
+    EmissionFactor:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        stageCode:
+          type: string
+        scope:
+          type: string
+        unit:
+          type: string
+        value:
+          type: number
+        source:
+          type: string
+        isDemo:
+          type: boolean
+        version:
+          type: integer
+    LifecycleStage:
+      type: object
+      properties:
+        code:
+          type: string
+        label:
+          type: string
+        description:
+          type: string
