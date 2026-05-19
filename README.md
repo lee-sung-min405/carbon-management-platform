@@ -230,3 +230,23 @@ npm run test:watch
 - 실시간 협업, 알림, 워크플로 자동화
 
 이 항목들은 의도적으로 잘라낸 범위이며, 데이터 모델을 단순화해 평가 시연 동선을 분명히 하기 위한 결정이다.
+
+## 9. AI 도구 사용 내역
+
+본 과제는 AI 사용이 허용됐으며, 사용 기록은 [docs/AI_USAGE.md](docs/AI_USAGE.md) 에 **"무엇을 했는지 / 어떤 Prompt 를 썼는지 / 왜 그렇게 결정했는지"** 3원칙으로 기록했다. AI 는 보조 도구로 사용했고, 최종 판단과 검증은 본인이 직접 수행했다.
+
+사용 도구는 **ChatGPT** (요구사항 분석 · PCF 도메인 이해 · 벤치마킹 · 문서 초안), **Figma AI** (제품 목록/상세 대시보드 초기 프로토타입), **GitHub Copilot Chat** (코드 구현 보조 · 리팩터 · 테스트 케이스 초안) 3종이다.
+
+| 사용 영역 | 사용 도구 | Prompt 요약 | 반영 내용 | 검증 방식 |
+| --- | --- | --- | --- | --- |
+| 요구사항 분석 | ChatGPT | "과제 안내 기준 필수/제외 항목 구분" | P0 항목만 본 저장소에 구현 · 우선순위는 본인 재배열 | 과제 첨부 이미지 3종과 1:1 대조 |
+| PCF 도메인 | ChatGPT | "Scope 1·2·3 vs 생애주기 5단계 차이 설명" | 생애주기 단계별 차트와 Scope 1/2/3 차트를 분리해 구현 | 시드/`stages.ts` 단계 코드 일치 확인 (`RAW_MATERIAL / PRODUCTION / TRANSPORT / USE / END_OF_LIFE`) |
+| 데이터 모델 | ChatGPT + Copilot | "Product/EmissionFactor/Activity/Run/Item 어떻게 나눌까" | snapshotJson 박제 채택 (버전 테이블 대신) | `prisma/schema.prisma` 와 실제 라우트 일치 확인 |
+| 계산 로직 | ChatGPT + Copilot | "amount × factor × ratio, TRANSPORT 만 ton-km" | `src/domain/pcf/calculate.ts` 순수 함수로 분리 | vitest 19건 + 단위 차원 본인 검증 |
+| UI 프로토타입 | Figma AI | "제품 목록 + 상세 대시보드 시안" | 시안 그대로 사용하지 않고 API shape · 단위 · DEMO ONLY · 5단계/Scope 요구에 맞게 재작성 | 브라우저에서 5단계 데모 완주 |
+| UI/UX 설계 | ChatGPT | "비전문가도 이해 가능한 화면 구성" | 제품 목록 + 상세 (탭 3종) 로 압축 | 단위 · Empty/Loading/Error 상태 화면 확인 |
+| 코드 보조 | Copilot | "props 기반 컴포넌트 리팩터" | 페이지 → 컴포넌트 props 기반 책임 분리 | `npx tsc --noEmit` · `npm run lint` 통과 |
+| 테스트 | Copilot + ChatGPT | "정상/경계/실패 케이스 vitest" | 6 파일 53건 작성 | `npm test` 53/53 |
+| README/문서 | ChatGPT | "평가 4축에 맞춘 섹션 순서" | 본 저장소 README 8섹션 | 실행 명령 · 파일 경로 본인 검증 |
+
+> AI 가 제안했지만 의식적으로 제외한 항목: 로그인 · RBAC · 멀티 테넌시 · AI 자동 리포트 · 감축 시나리오 · Sankey · 공급사 포털 · "공식 배출계수" 표기. 사유는 [docs/AI_USAGE.md](docs/AI_USAGE.md) §4 참고.
