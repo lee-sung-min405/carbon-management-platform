@@ -178,6 +178,18 @@ curl -s "localhost:3000/api/products/$PID/calculation-runs?include=items" | jq
 curl -s localhost:3000/api/health | jq
 ```
 
+### 5.4 프론트엔드 데모 흐름 (UI 5단계)
+
+평가자 시연용 — 브라우저에서 한 사이클을 그대로 재현한다.
+
+1. **시드** — `npm run db:seed` 로 `CT-045 컴퓨터 화면` + 활동 30행을 멱등 적재.
+2. **목록 진입** — `npm run dev` 후 [http://localhost:3000](http://localhost:3000) 에서 `CT-045` 카드 클릭 → 상세 진입.
+3. **계산 실행** — 상세 헤더의 `계산 실행` 버튼 → `LatestRunSummary` 가 **11,072.724 kgCO2e** 와 단계별 비중을 표시, 대시보드 5종(KPI/Scope 도넛/단계 도넛·막대/이력 라인/TopN)이 즉시 갱신.
+4. **CSV 재임포트** — `CSV 임포트` 탭 → `docs/sample-ct045.csv` 선택 + `mode=replace` → 30행 멱등 재시연 후 다시 계산 실행해도 동일 총량 재현.
+5. **이력 확인** — `계산 이력` 탭에서 누적 run 의 총량/단계별 비중 추이를 확인. URL `?tab=runs|csv` 로 탭이 영속되며 새로고침/공유 가능.
+
+> 모든 차트는 `role="img"` + SR 전용 `<table>` 로 스크린리더 동등 표현을 제공하며, `Tab` 키 만으로 헤더 → 본문 건너뛰기 링크 → 폼/탭 순회가 가능하다.
+
 ## 6. 테스트
 
 ```bash

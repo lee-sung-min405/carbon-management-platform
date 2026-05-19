@@ -27,7 +27,7 @@ export function StageBarChart({ data }: StageBarChartProps) {
         <p className="text-sm text-slate-700">단계별 배출량</p>
         <p className="text-xs text-slate-500">단위: kgCO2e</p>
       </div>
-      <Bar rows={rows} />
+      <Bar rows={rows} title="단계별 배출량 막대 그래프" />
       <p className="mt-4 text-xs text-slate-500">
         5단계를 모두 노출해 배출이 없는 단계도 확인할 수 있습니다.
       </p>

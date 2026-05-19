@@ -1,6 +1,6 @@
 "use client";
 
-import { formatKgCO2e } from "@/lib/format";
+import { formatKgCO2e, formatShare } from "@/lib/format";
 
 export interface BarRow {
   label: string;
@@ -10,6 +10,8 @@ export interface BarRow {
 
 export interface BarProps {
   rows: BarRow[];
+  /** 스크린리더 전용 동등 표의 caption. */
+  title?: string;
 }
 
 /**
@@ -18,10 +20,31 @@ export interface BarProps {
  * - 의도적으로 Recharts 사용 안 함 — 단순 div bar로 SSR/번들 부담 줄임.
  *   Donut 만 Recharts 에 의존.
  */
-export function Bar({ rows }: BarProps) {
+export function Bar({ rows, title }: BarProps) {
   const max = Math.max(...rows.map((r) => r.value), 1);
+  const total = rows.reduce((s, r) => s + r.value, 0);
   return (
     <div className="space-y-3">
+      {/* 스크린리더 전용 동등 표 — 시각 div bar 와 동일 데이터. */}
+      <table className="sr-only">
+        <caption>{title ?? "단계별 배출량"}</caption>
+        <thead>
+          <tr>
+            <th scope="col">항목</th>
+            <th scope="col">배출량</th>
+            <th scope="col">비중</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.label}>
+              <th scope="row">{r.label}</th>
+              <td>{formatKgCO2e(r.value)}</td>
+              <td>{formatShare(total > 0 ? r.value / total : 0)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       {rows.map((r) => {
         const pct = (r.value / max) * 100;
         return (

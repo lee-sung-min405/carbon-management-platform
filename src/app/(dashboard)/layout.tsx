@@ -13,9 +13,19 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
+      {/* 스크린리더/키보드 사용자를 위한 건너뛰기 링크. */}
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-emerald-700 focus:px-3 focus:py-2 focus:text-sm focus:text-white"
+      >
+        본문으로 건너뛰기
+      </a>
       <AppHeader />
       <DemoBanner context="list" />
-      <main className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6">
+      <main
+        id="main"
+        className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6"
+      >
         {children}
       </main>
     </div>

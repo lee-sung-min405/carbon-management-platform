@@ -31,9 +31,14 @@ export function Donut({ data, centerText, centerSub, title }: DonutProps) {
   }));
 
   return (
-    <div className="relative h-52" role="img" aria-label={title}>
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
+    <div className="relative h-52">
+      <ResponsiveContainer
+        width="100%"
+        height="100%"
+        aria-hidden
+      >
+        <PieChart accessibilityLayer>
+          {title && <title>{title}</title>}
           <Pie
             data={safeData}
             dataKey="value"
@@ -76,6 +81,26 @@ export function Donut({ data, centerText, centerSub, title }: DonutProps) {
         <p className="font-mono text-sm text-slate-900">{centerText}</p>
         {centerSub && <p className="text-xs text-slate-500">{centerSub}</p>}
       </div>
+      {/* 스크린리더 전용 동등 표. */}
+      <table className="sr-only">
+        <caption>{title ?? "차트 데이터"}</caption>
+        <thead>
+          <tr>
+            <th scope="col">항목</th>
+            <th scope="col">배출량</th>
+            <th scope="col">비중</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.map((d) => (
+            <tr key={d.name}>
+              <th scope="row">{d.name}</th>
+              <td>{formatKgCO2e(d.value)}</td>
+              <td>{formatShare(total > 0 ? d.value / total : 0)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
