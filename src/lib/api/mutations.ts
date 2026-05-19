@@ -46,3 +46,24 @@ export const bulkImportCsv = (
       body: csvText,
     },
   );
+
+/**
+ * xlsx 바이너리를 OOXML MIME 으로 그대로 전송한다 — 서버가 첫 시트를 CSV 로
+ * 변환 후 동일 파이프라인으로 적재한다 (과제 안내 "Excel 직접 임포트" 가점).
+ */
+export const bulkImportXlsx = (
+  productId: string,
+  buffer: ArrayBuffer,
+  mode: "append" | "replace",
+) =>
+  apiFetch<BulkImportResult>(
+    `/api/products/${productId}/activities/bulk?mode=${mode}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      },
+      body: buffer,
+    },
+  );

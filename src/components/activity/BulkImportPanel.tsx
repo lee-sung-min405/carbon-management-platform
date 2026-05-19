@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CSV_HEADER } from "@/lib/csv/activity-csv";
-import { bulkImportCsv } from "@/lib/api/mutations";
+import { bulkImportCsv, bulkImportXlsx } from "@/lib/api/mutations";
 import { ApiClientError } from "@/lib/http";
 import { getErrorMessage } from "@/lib/api/error-messages";
 import type { BulkImportResult } from "@/types/api";
@@ -24,11 +24,16 @@ export interface BulkImportPanelProps {
 }
 
 type ImportMode = "append" | "replace";
+type ImportKind = "csv" | "xlsx";
 
 interface PreviewState {
+  kind: ImportKind;
   fileName: string;
   fileSize: number;
-  text: string;
+  /** CSV 일 때만 채워진다. xlsx 는 binary 이므로 별도 buffer 보관. */
+  text?: string;
+  /** xlsx 일 때만 채워진다. 업로드 시 ArrayBuffer 로 직접 전송. */
+  file?: File;
   headerOk: boolean;
   headerActual: string[];
   rows: string[][];
@@ -59,7 +64,25 @@ export function BulkImportPanel({ productId, onUploaded }: BulkImportPanelProps)
     setError(null);
     setRowErrors([]);
     setResult(null);
+    const isXlsx =
+      file.name.toLowerCase().endsWith(".xlsx") ||
+      file.type ===
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     try {
+      if (isXlsx) {
+        // xlsx 는 바이너리 — 클라이언트 파싱 없이 서버 변환에 위임 (헤더/행 검증은 업로드 시 응답).
+        setPreview({
+          kind: "xlsx",
+          fileName: file.name,
+          fileSize: file.size,
+          file,
+          headerOk: true,
+          headerActual: [],
+          rows: [],
+          totalRows: 0,
+        });
+        return;
+      }
       const text = await file.text();
       const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
       const header = (lines[0] ?? "").split(",").map((s) => s.trim());
@@ -68,6 +91,7 @@ export function BulkImportPanel({ productId, onUploaded }: BulkImportPanelProps)
         header.every((h, i) => h === CSV_HEADER[i]);
       const rows = lines.slice(1, 6).map((l) => l.split(",").map((c) => c.trim()));
       setPreview({
+        kind: "csv",
         fileName: file.name,
         fileSize: file.size,
         text,
@@ -88,7 +112,15 @@ export function BulkImportPanel({ productId, onUploaded }: BulkImportPanelProps)
     setRowErrors([]);
     setResult(null);
     try {
-      const res = await bulkImportCsv(productId, preview.text, mode);
+      let res: BulkImportResult;
+      if (preview.kind === "xlsx" && preview.file) {
+        const buf = await preview.file.arrayBuffer();
+        res = await bulkImportXlsx(productId, buf, mode);
+      } else if (preview.kind === "csv" && preview.text !== undefined) {
+        res = await bulkImportCsv(productId, preview.text, mode);
+      } else {
+        throw new Error("업로드할 파일이 준비되지 않았습니다.");
+      }
       setResult(res);
       onUploaded?.(res);
     } catch (e) {
@@ -118,9 +150,9 @@ export function BulkImportPanel({ productId, onUploaded }: BulkImportPanelProps)
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-5">
-      <p className="text-sm text-slate-700">CSV 임포트</p>
+      <p className="text-sm text-slate-700">CSV / Excel 임포트</p>
       <p className="mt-1 text-xs text-slate-500">
-        예상 헤더: {CSV_HEADER.join(", ")} · UTF-8 권장
+        예상 헤더: {CSV_HEADER.join(", ")} · CSV 는 UTF-8 권장 · xlsx 는 첫 시트 사용
       </p>
 
       {/* 드롭존 */}
@@ -145,7 +177,7 @@ export function BulkImportPanel({ productId, onUploaded }: BulkImportPanelProps)
         }}
         role="button"
         tabIndex={0}
-        aria-label="CSV 파일 업로드 영역"
+        aria-label="CSV 또는 xlsx 파일 업로드 영역"
         className={`mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-6 py-10 text-center transition focus:outline-none focus:ring-2 focus:ring-emerald-300 ${
           drag
             ? "border-emerald-400 bg-emerald-50"
@@ -154,13 +186,13 @@ export function BulkImportPanel({ productId, onUploaded }: BulkImportPanelProps)
       >
         <Upload className="h-6 w-6 text-slate-500" aria-hidden />
         <p className="text-sm text-slate-700">
-          CSV 파일을 드래그하거나 클릭해서 업로드하세요.
+          CSV 또는 Excel(.xlsx) 파일을 드래그하거나 클릭해서 업로드하세요.
         </p>
-        <p className="text-xs text-slate-500">.csv · UTF-8 권장</p>
+        <p className="text-xs text-slate-500">.csv · .xlsx · 과제 원본 Excel 직접 업로드 지원</p>
         <input
           ref={inputRef}
           type="file"
-          accept=".csv,text/csv"
+          accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -177,7 +209,11 @@ export function BulkImportPanel({ productId, onUploaded }: BulkImportPanelProps)
               <FileText className="h-4 w-4 text-slate-500" aria-hidden />
               <span className="font-mono">{preview.fileName}</span>
               <span className="text-xs text-slate-500">
-                ({formatBytes(preview.fileSize)} · 데이터 {preview.totalRows}행)
+                ({formatBytes(preview.fileSize)}
+                {preview.kind === "xlsx"
+                  ? " · xlsx · 첫 시트만 사용 · 헤더/행 검증은 업로드 시 서버에서 수행"
+                  : ` · 데이터 ${preview.totalRows}행`}
+                )
               </span>
             </p>
             <Button
@@ -337,7 +373,7 @@ export function BulkImportPanel({ productId, onUploaded }: BulkImportPanelProps)
           {isUploading && (
             <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden />
           )}
-          CSV 업로드
+          {preview?.kind === "xlsx" ? "Excel 업로드" : "CSV 업로드"}
         </Button>
       </div>
     </div>

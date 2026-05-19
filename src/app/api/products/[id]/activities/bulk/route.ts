@@ -14,6 +14,11 @@ import {
   parseActivityCsv,
   type ParsedActivityRow,
 } from "@/lib/csv/activity-csv";
+import {
+  XLSX_MIME,
+  XlsxParseError,
+  xlsxBufferToCsvText,
+} from "@/lib/csv/xlsx-to-rows";
 
 /**
  * POST /api/products/[id]/activities/bulk
@@ -23,6 +28,9 @@ import {
  *   - `application/json` → `ActivityBulkInput` ({ items, mode })
  *   - `text/csv`         → 본문을 `parseActivityCsv`로 파싱
  *                          (mode는 쿼리스트링 `?mode=replace`로 지정, 기본 append)
+ *   - `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+ *     → xlsx 본문 첫 시트를 CSV 로 변환 후 동일 파서 재사용
+ *       (과제 안내 이미지 2 노란 박스 "Excel 직접 임포트" 가점)
  *
  * 모든 행 검증/factor 매칭이 통과한 경우에만 트랜잭션 안에서 일괄 적재한다.
  * `mode=replace` 는 deleteMany 후 createMany (멱등 임포트 시연).
@@ -82,7 +90,7 @@ export async function POST(
         note: write.note,
       };
     });
-  } else if (contentType === "text/csv") {
+  } else if (contentType === "text/csv" || contentType === XLSX_MIME) {
     const url = new URL(request.url);
     const modeParam = url.searchParams.get("mode") ?? "append";
     if (modeParam !== "append" && modeParam !== "replace") {
@@ -94,12 +102,34 @@ export async function POST(
     mode = modeParam;
 
     let text: string;
-    try {
-      text = await request.text();
-    } catch {
-      return fail(400, "CSV 본문을 읽지 못했습니다.", {
-        code: API_ERROR_CODES.CSV_PARSE_ERROR,
-      });
+    if (contentType === XLSX_MIME) {
+      // xlsx → CSV 텍스트로 변환 후 기존 파이프라인 재사용.
+      let buf: ArrayBuffer;
+      try {
+        buf = await request.arrayBuffer();
+      } catch {
+        return fail(400, "xlsx 본문을 읽지 못했습니다.", {
+          code: API_ERROR_CODES.CSV_PARSE_ERROR,
+        });
+      }
+      try {
+        text = xlsxBufferToCsvText(buf);
+      } catch (err) {
+        if (err instanceof XlsxParseError) {
+          return fail(400, err.message, {
+            code: API_ERROR_CODES.CSV_PARSE_ERROR,
+          });
+        }
+        throw err;
+      }
+    } else {
+      try {
+        text = await request.text();
+      } catch {
+        return fail(400, "CSV 본문을 읽지 못했습니다.", {
+          code: API_ERROR_CODES.CSV_PARSE_ERROR,
+        });
+      }
     }
 
     let parsedRows: ParsedActivityRow[];
@@ -135,7 +165,7 @@ export async function POST(
   } else {
     return fail(
       415,
-      `지원하지 않는 Content-Type: ${contentType}. application/json 또는 text/csv 를 사용해주세요.`,
+      `지원하지 않는 Content-Type: ${contentType}. application/json · text/csv · ${XLSX_MIME} 중 하나를 사용해주세요.`,
       { code: API_ERROR_CODES.UNSUPPORTED_MEDIA_TYPE },
     );
   }
