@@ -5,13 +5,28 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useProduct, useRuns } from "@/lib/api/hooks";
+import { useProduct, useRuns, useFactors } from "@/lib/api/hooks";
 import { runCalculation } from "@/lib/api/mutations";
 import { LoadingState } from "@/components/common/LoadingState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { EmptyState } from "@/components/common/EmptyState";
 import { getErrorMessage } from "@/lib/api/error-messages";
 import { formatDateTime, formatKgCO2e } from "@/lib/format";
+import {
+  summarizeByStage,
+  summarizeByScope,
+  getTopEmissionActivities,
+} from "@/domain/pcf/summarize";
+import {
+  buildTopEmittersRows,
+  buildInsights,
+} from "@/lib/adapters/dashboard";
+import { TotalPcfCard } from "@/components/dashboard/TotalPcfCard";
+import { StagePieChart } from "@/components/dashboard/StagePieChart";
+import { ScopeDonut } from "@/components/dashboard/ScopeDonut";
+import { StageBarChart } from "@/components/dashboard/StageBarChart";
+import { TopEmittersTable } from "@/components/dashboard/TopEmittersTable";
+import { CalculationBasisNote } from "@/components/dashboard/CalculationBasisNote";
 import type { CalculationRun, ProductDetail } from "@/types/api";
 
 /**
@@ -28,6 +43,7 @@ export default function ProductDetailPage() {
 
   const product = useProduct(id);
   const runs = useRuns(id);
+  const factors = useFactors();
 
   // 이번 세션에서 막 실행한 계산 결과(전체 items 포함).
   // runs 목록에는 메타만 있어 차트 그리려면 별도 보관 필요.
@@ -86,12 +102,87 @@ export default function ProductDetailPage() {
           onRetry={() => void handleCalculate()}
         />
       )}
+{lastRun ? (
+        <DashboardGrid
+          product={p}
+          run={lastRun}
+          allFactors={factors.data ?? []}
+        />
+      ) : (
+        <LatestRunSummary product={p} lastRun={lastRun} />
+      )}
 
-      <LatestRunSummary
-        product={p}
-        lastRun={lastRun}
-      />
+      {/* 활동 폼 / 히스토리는 다음 커밋에서 추가 */}
+    </div>
+  );
+}
 
+function DashboardGrid({
+  product,
+  run,
+  allFactors,
+}: {
+  product: ProductDetail;
+  run: CalculationRun;
+  allFactors: import("@/types/api").Factor[];
+}) {
+  const stageSummary = summarizeByStage(run.items);
+  const scopeSummary = summarizeByScope(run.items);
+  const topItems = getTopEmissionActivities(run.items, 5);
+
+  // 활동 join → 표 row + 인사이트
+  const topRows = buildTopEmittersRows(
+    topItems,
+    product.activities,
+    run.totalKgCO2e,
+  );
+
+  // 이 제품 계산에 실제로 사용된 계수만 노출 (전체 계수 카탈로그에서 필터)
+  const usedFactorIds = new Set(
+    product.activities.map((a) => a.factorId),
+  );
+  const usedFactors = allFactors.filter((f) => usedFactorIds.has(f.id));
+  const isDemo =
+    usedFactors.some((f) => f.isDemo) ||
+    product.activities.some((a) => a.factor.isDemo);
+
+  const insights = buildInsights(
+    stageSummary,
+    scopeSummary,
+    topRows[0],
+    product.activities,
+    usedFactors,
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+        <div className="min-w-0">
+          <TotalPcfCard
+            total={run.totalKgCO2e}
+            functionalUnit={product.functionalUnit}
+            calculatedAt={run.runAt}
+            insights={insights}
+          />
+        </div>
+        <div className="min-w-0">
+          <StagePieChart data={stageSummary} />
+        </div>
+        <div className="min-w-0">
+          <ScopeDonut data={scopeSummary} />
+        </div>
+      </div>
+
+      <StageBarChart data={stageSummary} />
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2">
+          <TopEmittersTable rows={topRows} />
+        </div>
+        <div className="min-w-0">
+          <CalculationBasisNote factors={usedFactors} isDemo={isDemo} />
+        </div>
+      </div>
       {/* 차트 / 활동 폼 / 히스토리는 다음 커밋에서 추가 */}
     </div>
   );
