@@ -268,6 +268,16 @@ curl -s localhost:3000/api/health | jq
 
 > 모든 차트는 `role="img"` + SR 전용 `<table>` 로 스크린리더 동등 표현을 제공하며, `Tab` 키 만으로 헤더 → 본문 건너뛰기 링크 → 폼/탭 순회가 가능하다.
 
+### 5.5 과제 원본 Excel 임포트 (CSV 변환 경로)
+
+과제 안내 이미지의 30행 활동 표는 다음 절차로 그대로 임포트할 수 있다.
+
+1. Excel 시트를 **다른 이름으로 저장 → CSV UTF-8 (`.csv`)** 로 내보낸다. 헤더는 `일자,활동 유형,설명,량,단위` (저장소의 [docs/sample-ct045.csv](docs/sample-ct045.csv) 와 동일 스키마).
+2. UI `CSV 임포트` 탭에서 파일 선택 → `mode=replace` → "임포트 실행". (curl 사용 시 §5.3 의 `Content-Type: text/csv` 예시 그대로 사용.)
+3. 30행 적재 후 "계산 실행" → **11,072.724 kgCO2e** 가 재현된다 (시드 결과와 동일).
+
+> 헤더 매핑·계수 해석은 [src/lib/csv/activity-csv.ts](src/lib/csv/activity-csv.ts) 가 담당한다 (외부 CSV/Excel 라이브러리 미사용). 한국어 헤더 `일자,활동 유형,설명,량,단위` 를 그대로 받아 활동 유형(`전기/원소재/운송`) + 설명(예: `플라스틱 1|2`) 기반으로 시드 4종 factor 와 매칭한다.
+
 ## 6. 테스트
 
 ```bash
