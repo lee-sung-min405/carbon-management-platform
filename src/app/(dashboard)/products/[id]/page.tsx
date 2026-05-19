@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useProduct, useRuns, useFactors } from "@/lib/api/hooks";
 import { runCalculation } from "@/lib/api/mutations";
 import { LoadingState } from "@/components/common/LoadingState";
@@ -27,9 +28,14 @@ import { ScopeDonut } from "@/components/dashboard/ScopeDonut";
 import { StageBarChart } from "@/components/dashboard/StageBarChart";
 import { TopEmittersTable } from "@/components/dashboard/TopEmittersTable";
 import { CalculationBasisNote } from "@/components/dashboard/CalculationBasisNote";
+import { CalculationRunsHistory } from "@/components/dashboard/CalculationRunsHistory";
 import { ActivityForm } from "@/components/activity/ActivityForm";
 import { ActivitiesTable } from "@/components/activity/ActivitiesTable";
-import type { Activity, CalculationRun, ProductDetail } from "@/types/api";
+import { BulkImportPanel } from "@/components/activity/BulkImportPanel";
+import type { Activity, CalculationRun, ProductDetail, RunMeta } from "@/types/api";
+
+const TAB_VALUES = ["activities", "runs", "csv"] as const;
+type TabValue = (typeof TAB_VALUES)[number];
 
 /**
  * 제품 상세 Container.
@@ -116,33 +122,112 @@ export default function ProductDetailPage() {
         <LatestRunSummary product={p} lastRun={lastRun} />
       )}
 
-      {/* 활동 폼 / 히스토리는 다음 커밋에서 추가 */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
-        <div className="lg:col-span-2">
-          <ActivityForm
-            productId={p.id}
-            initial={editTarget}
-            onSubmitted={() => {
-              setEditTarget(null);
-              void product.mutate();
-            }}
-            onCancelEdit={() => setEditTarget(null)}
-          />
-        </div>
-        <div className="lg:col-span-3">
-          <ActivitiesTable
-            activities={p.activities}
-            onEdit={(a) => setEditTarget(a)}
-            onDeleted={() => {
-              if (editTarget) setEditTarget(null);
-              void product.mutate();
-            }}
-          />
-        </div>
-      </div>
-
-      {/* 계산 이력 / CSV 임포트 탭은 다음 커밋에서 추가 */}
+      <Suspense fallback={null}>
+        <DetailTabs
+          product={p}
+          runs={runs.data ?? []}
+          lastSession={lastRun}
+          editTarget={editTarget}
+          onEdit={setEditTarget}
+          onActivityChanged={() => {
+            setEditTarget(null);
+            void product.mutate();
+          }}
+          onCalculate={handleCalculate}
+          isCalculating={isCalculating}
+          onCsvUploaded={() => {
+            void product.mutate();
+            void runs.mutate();
+          }}
+        />
+      </Suspense>
     </div>
+  );
+}
+
+function DetailTabs({
+  product,
+  runs,
+  lastSession,
+  editTarget,
+  onEdit,
+  onActivityChanged,
+  onCalculate,
+  isCalculating,
+  onCsvUploaded,
+}: {
+  product: ProductDetail;
+  runs: RunMeta[];
+  lastSession: CalculationRun | null;
+  editTarget: Activity | null;
+  onEdit: (a: Activity | null) => void;
+  onActivityChanged: () => void;
+  onCalculate: () => void;
+  isCalculating: boolean;
+  onCsvUploaded: () => void;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const raw = searchParams.get("tab");
+  const active: TabValue = (TAB_VALUES as readonly string[]).includes(raw ?? "")
+    ? (raw as TabValue)
+    : "activities";
+
+  const setActive = useCallback(
+    (v: string) => {
+      const next = new URLSearchParams(searchParams.toString());
+      if (v === "activities") next.delete("tab");
+      else next.set("tab", v);
+      const qs = next.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname, searchParams],
+  );
+
+  return (
+    <Tabs value={active} onValueChange={setActive} className="space-y-5">
+      <TabsList>
+        <TabsTrigger value="activities">
+          활동 데이터 ({product.activities.length})
+        </TabsTrigger>
+        <TabsTrigger value="runs">계산 이력 ({runs.length})</TabsTrigger>
+        <TabsTrigger value="csv">CSV 임포트</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="activities" className="mt-0">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
+          <div className="lg:col-span-2">
+            <ActivityForm
+              productId={product.id}
+              initial={editTarget}
+              onSubmitted={onActivityChanged}
+              onCancelEdit={() => onEdit(null)}
+            />
+          </div>
+          <div className="lg:col-span-3">
+            <ActivitiesTable
+              activities={product.activities}
+              onEdit={onEdit}
+              onDeleted={onActivityChanged}
+            />
+          </div>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="runs" className="mt-0">
+        <CalculationRunsHistory
+          runs={runs}
+          lastSession={lastSession}
+          onCalculate={onCalculate}
+          isCalculating={isCalculating}
+        />
+      </TabsContent>
+
+      <TabsContent value="csv" className="mt-0">
+        <BulkImportPanel productId={product.id} onUploaded={onCsvUploaded} />
+      </TabsContent>
+    </Tabs>
   );
 }
 
