@@ -6,7 +6,7 @@
  * 일반 RFC 4180 완전 호환은 비-목표이다.
  *
  * 입력 헤더(정확히 일치 필요):
- *   `일자,활동 유형,설명,량,단위`
+ *   `일자(원본),활동 유형,설명,량,단위`
  *
  * 출력은 `ParsedActivityRow[]` — 라우트 핸들러는 이를 받아 factor name → factorId
  * 해석 후 Prisma `createMany`로 일괄 적재한다 (본 모듈에는 DB 의존이 없다).
@@ -14,7 +14,7 @@
 
 import type { StageCode } from "@/domain/pcf/stages";
 
-export const CSV_HEADER = ["일자", "활동 유형", "설명", "량", "단위"] as const;
+export const CSV_HEADER = ["일자(원본)", "활동 유형", "설명", "량", "단위"] as const;
 
 /**
  * 활동 유형 + 설명 → (stageCode, 매칭할 factor name, 기대 단위) 매핑.
