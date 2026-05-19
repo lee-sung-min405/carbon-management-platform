@@ -50,6 +50,73 @@ share     :  item.kgCO2e / total   // total=0 이면 0
 
 `Product 1—N ProductActivity N—1 EmissionFactor` + `Product 1—N CalculationRun 1—N CalculationItem`.
 
+```mermaid
+erDiagram
+    Product ||--o{ ProductActivity : "has"
+    Product ||--o{ CalculationRun  : "has"
+    EmissionFactor ||--o{ ProductActivity : "referenced by"
+    CalculationRun ||--o{ CalculationItem : "details"
+
+    Product {
+        string id PK
+        string name
+        string sku UK "nullable"
+        string functionalUnit
+        string description "nullable"
+        datetime createdAt
+    }
+
+    EmissionFactor {
+        string id PK
+        string name
+        StageCode stageCode
+        GhgScope scope "default SCOPE_3"
+        string unit "kgCO2e/kg | kWh | ton-km"
+        float value
+        string source "DEMO ONLY"
+        bool isDemo
+        int version "uniq(name,stageCode,version)"
+    }
+
+    ProductActivity {
+        string id PK
+        string productId FK
+        StageCode stageCode
+        string name
+        float amount "TRANSPORT 파생모드면 0"
+        string unit
+        string factorId FK
+        float allocationRatio "0<x<=1"
+        float weightKg "TRANSPORT only"
+        float distanceKm "TRANSPORT only"
+        date occurredOn "nullable"
+        string note "nullable"
+        datetime createdAt
+    }
+
+    CalculationRun {
+        string id PK
+        string productId FK
+        float totalKgCO2e
+        json snapshotJson "활동/계수 박제 → 재현성"
+        datetime runAt
+    }
+
+    CalculationItem {
+        string id PK
+        string runId FK
+        string activityId "snapshot ref"
+        StageCode stageCode
+        GhgScope scope "factor scope 스냅샷"
+        float kgCO2e
+        float share "0~1"
+    }
+```
+
+> `StageCode` = `{ RAW_MATERIAL · PRODUCTION · TRANSPORT · USE · END_OF_LIFE }`,
+> `GhgScope` = `{ SCOPE_1 · SCOPE_2 · SCOPE_3 }` (enum, 별도 테이블 없음).
+> `LifeCycleStage` 메타는 `src/domain/pcf/stages.ts` 단일 소스로 관리.
+
 설계 결정 4가지:
 
 - **`EmissionFactor @@unique([name, stageCode])`** — 시드/대량 등록을 멱등하게 만들고 “같은 단계 안에서 동일 이름 계수가 두 벌” 인 모호함을 차단.
