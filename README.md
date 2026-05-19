@@ -1,4 +1,28 @@
+
+
+
+
+<div align="center">
+
+## 📚 주요 문서 바로가기
+
+아래 표에서 각 문서의 역할을 확인하고, 바로 접근할 수 있습니다.
+
+| **파일명** | **역할** |
+| :--- | :--- |
+| [🕒 WORK_TIME.md](docs/WORK_TIME.md) | 작업 시간 기록, 세션별 내용, 평가 기준별 기여 내역 |
+| [🏗️ ARCHITECTURE.md](docs/ARCHITECTURE.md) | 상세 설계, 레이어·폴더·파일 책임, 데이터 흐름 |
+| [🤖 AI_USAGE.md](docs/AI_USAGE.md) | AI 사용 내역, 주요 Prompt 및 반영/제외 내역 |
+| [📑 openapi.yaml](docs/openapi.yaml) | OpenAPI 3.1 명세 (API 계약) |
+| [📄 sample-ct045.csv](docs/sample-ct045.csv) | 과제 제공 샘플 CSV (30행 활동 데이터) |
+| [📊 sample-ct045.xlsx](docs/sample-ct045.xlsx) | 과제 제공 원본 Excel (30행 활동 데이터, 가공 없이 업로드 가능) |
+
+</div>
+
 # carbon-management-platform
+
+> **작업 시간 기록:** 실제 작업 소요 시간, 세션별 내용, 평가 기준별 기여 내역 등은 [docs/WORK_TIME.md](docs/WORK_TIME.md)에서 확인할 수 있습니다.
+
 
 (주)하나루프 SaaS 탄소경영플랫폼 — **개발자 채용 과제** 구현물.
 
