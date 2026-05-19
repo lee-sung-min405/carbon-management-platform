@@ -128,27 +128,69 @@ erDiagram
 
 ```
 src/
-├─ app/
-│  ├─ api/                     # Route Handlers (얇은 HTTP 레이어)
-│  │  ├─ products/             # CRUD + calculate + calculation-runs
-│  │  ├─ emission-factors/     # 계수 조회 (?stage= 필터)
-│  │  └─ lifecycle-stages/     # 단계 메타 (UI 셀렉터용)
-│  └─ (ui)/                    # 대시보드/입력 UI 트리
-├─ domain/pcf/                 # 순수 도메인 — React/Prisma/fetch 의존 없음
-│  ├─ calculate.ts             # 계산 엔진
-│  ├─ summarize.ts             # 단계별 집계
-│  ├─ stages.ts                # 단계 상수 단일 소스
-│  └─ types.ts                 # 도메인 타입 (Prisma 모델과 분리)
+├─ app/                              # Next.js App Router
+│  ├─ layout.tsx                      # 루트 HTML·메타
+│  ├─ providers.tsx                   # SWRConfig + apiFetch 기본 fetcher
+│  ├─ globals.css
+│  ├─ api/                            # Route Handlers — 얇은 HTTP 레이어
+│  │  ├─ health/route.ts              # GET 프로세스·DB ping
+│  │  ├─ products/
+│  │  │  ├─ route.ts                  # GET 목록 · POST 생성
+│  │  │  └─ [id]/
+│  │  │     ├─ route.ts               # GET 제품 단건
+│  │  │     ├─ activities/
+│  │  │     │  ├─ route.ts            # POST 활동 추가
+│  │  │     │  └─ bulk/route.ts       # POST CSV·xlsx 일괄 임포트
+│  │  │     ├─ calculate/route.ts     # POST PCF 계산 + Run 저장
+│  │  │     └─ calculation-runs/route.ts  # GET 계산 이력
+│  │  ├─ activities/[id]/route.ts     # PUT·DELETE 활동
+│  │  ├─ emission-factors/route.ts    # GET 배출계수 (?stage=)
+│  │  └─ lifecycle-stages/route.ts    # GET 단계 메타 (UI 셀렉터)
+│  └─ (dashboard)/                    # UI 라우트 그룹 — URL 경로에 미포함
+│     ├─ layout.tsx                   # AppHeader · DemoBanner · 본문 skip-link
+│     ├─ page.tsx                     # / 제품 목록
+│     └─ products/[id]/page.tsx       # /products/:id 상세·활동·차트·임포트 탭
+├─ components/
+│  ├─ product/                        # ProductList · ProductForm (+ test)
+│  ├─ activity/                       # ActivityForm · ActivitiesTable · BulkImportPanel · TransportFields
+│  ├─ dashboard/                      # TotalPcfCard · Scope/Stage 차트 · CalculationRunsHistory · …
+│  ├─ charts/                         # Donut · Bar (recharts 래퍼)
+│  ├─ common/                         # AppHeader · DemoBanner · HealthBadge · Empty/Loading/Error
+│  └─ ui/                             # shadcn/ui (button · dialog · input · select · tabs · …)
+├─ domain/pcf/                        # 순수 도메인 — React/Prisma/fetch 의존 없음
+│  ├─ calculate.ts                    # kgCO2e · TRANSPORT ton-km 계산
+│  ├─ summarize.ts                    # 단계별 집계
+│  ├─ stages.ts · scopes.ts           # 단계·GHG Scope 상수 (단일 소스)
+│  ├─ types.ts · errors.ts            # 도메인 타입 · PcfDomainError
+│  └─ __tests__/                      # calculate · summarize 단위 테스트
 ├─ lib/
-│  ├─ adapters/pcf.ts          # Prisma row ↔ 도메인 객체 어댑터
+│  ├─ adapters/
+│  │  ├─ pcf.ts                       # Prisma row ↔ 도메인 객체
+│  │  └─ dashboard.ts                 # API 응답 → 차트 ViewModel
 │  ├─ api/
-│  │  ├─ response.ts           # ok / fail / failFromZod (envelope)
-│  │  └─ handlers.ts           # parseJsonBody / requireProduct / validateFactorForStage
-│  ├─ validations/             # Zod 입력 스키마 (product, activity)
-│  ├─ db.ts                    # Prisma 7 driver-adapter 싱글톤
-│  └─ http.ts                  # 클라이언트용 apiFetch + ApiClientError
-└─ generated/prisma/           # Prisma Client (gitignored)
+│  │  ├─ response.ts                  # ok / fail / failFromZod (envelope)
+│  │  ├─ handlers.ts                  # parseJsonBody · requireProduct · validateFactorForStage
+│  │  ├─ error-codes.ts · error-messages.ts
+│  │  ├─ hooks.ts                     # SWR — useProducts · useProduct · useFactors · useRuns · useHealth
+│  │  └─ mutations.ts                 # createProduct · runCalculation · bulkImportCsv/Xlsx · …
+│  ├─ validations/                    # Zod — product.ts · activity.ts (+ __tests__)
+│  ├─ csv/
+│  │  ├─ activity-csv.ts              # CSV 파싱 · factor 매칭 (한국어 헤더)
+│  │  └─ xlsx-to-rows.ts              # xlsx 첫 시트 → 행 배열
+│  ├─ ui/                             # palette · cn
+│  ├─ db.ts                           # Prisma 7 + @prisma/adapter-pg 싱글톤
+│  ├─ http.ts                         # apiFetch · ApiClientError (봉투 풀이)
+│  ├─ format.ts                       # 숫자·단위 표시 포맷
+│  └─ __tests__/http.test.ts
+├─ types/
+│  ├─ api.ts                          # API DTO (ProductDetail · RunSummary · …)
+│  └─ css.d.ts
+└─ generated/prisma/                  # Prisma Client (`migrate` 후 생성, gitignore)
 ```
+
+**요청 흐름 (예: PCF 계산)**
+
+`products/[id]/page.tsx` → `mutations.runCalculation` → `http.apiFetch` → `POST /api/products/:id/calculate` → `handlers` · `adapters/pcf` → `domain/pcf/calculate` → Prisma `CalculationRun` 저장 → SWR revalidate → `dashboard/*` 차트 갱신.
 
 레이어 규칙:
 
@@ -157,7 +199,7 @@ src/
 3. **응답 봉투는 단 하나** — `{ data } | { error: { message, code?, fields? } }`. 클라이언트(`apiFetch`)는 이 모양 외에는 알지 못한다.
 4. **에러 코드는 식별자**. 사용자용 한글 메시지와 분리해 클라이언트 분기에 사용한다.
 
-
+> **상세 설계 문서** — 레이어별 책임·설계 의도·저장소 전체 구조·주요 요청 흐름·테스트 배치는 [**docs/ARCHITECTURE.md**](docs/ARCHITECTURE.md) 에서 다룬다. (본 README는 시스템 개요·도메인·실행·API 요약을 담고, 아키텍처 트리는 빠른 탐색용이다.)
 
 > 기계 판독용 명세: [docs/openapi.yaml](docs/openapi.yaml) (OpenAPI 3.1)
 >
@@ -204,42 +246,62 @@ src/
 
 ## 5. 실행 (Getting Started)
 
+본 저장소는 **Next.js 풀스택** 구조다. 별도의 백엔드·프론트엔드 서버를 나누지 않으며, `npm run dev` 한 번으로 아래가 동시에 기동된다.
+
+| 구분 | 로컬 구성 | 접속 |
+| ---- | --------- | ---- |
+| **DB** | Docker Compose — PostgreSQL 16 | `localhost:5432` |
+| **API** | Next.js Route Handlers (`src/app/api/`) | `http://localhost:3000/api` |
+| **UI** | Next.js App Router (`src/app/`) | [http://localhost:3000](http://localhost:3000) |
+
+> Docker는 **PostgreSQL만** 띄운다. 앱( API + UI )은 호스트의 Node.js에서 실행한다.
+
 ### 5.1 요구사항
 
-- Node.js ≥ 20 (`.nvmrc` 22.18.0 권장)
-- npm 10.x
-- Docker (Postgres 16)
+- Node.js ≥ 20
+- npm 10.x (`package-lock.json` 기준 `npm@10.9.3` 으로 검증)
+- Docker + Docker Compose (Postgres 16 컨테이너용)
 
 ### 5.2 부트스트랩
+
+아래 순서를 그대로 따르면 DB 적용 → 시드 → 브라우저 시연까지 이어진다.
 
 ```bash
 # 1) 의존성
 npm ci
 
 # 2) 환경변수
-cp .env.example .env       # DATABASE_URL 기본값 사용
+cp .env.example .env       # DATABASE_URL — docker-compose 와 동일 계정/포트
 
-# 3) Postgres 기동
+# 3) Postgres 기동 (Docker)
 docker compose up -d
+#    Postgres 연결 대기 (compose에 healthcheck 없음 — 첫 기동 후 5~10초 여유)
+#    선택: docker compose exec -T postgres pg_isready -U carbon -d carbon
 
-# 4) 마이그레이션 + 시드 (멱등)
-npx prisma migrate dev     # 스키마 적용
-npm run db:seed            # 제품 1 + 계수 4 + 활동 30 upsert (CT-045 컴퓨터 화면 시드)
+# 4) 스키마 적용 + Prisma Client 생성
+#    Client 는 src/generated/prisma 에 생성되며 저장소에 포함되지 않는다.
+npx prisma migrate dev
 
-# 5) 개발 서버
+# 5) 시드 (멱등)
+npm run db:seed            # 제품 1 + 계수 4 + 활동 30 upsert (CT-045 컴퓨터 화면)
+
+# 6) 개발 서버 — API + UI 동시 기동
 npm run dev                # http://localhost:3000
 ```
 
-> **패키지 매니저**: 본 저장소는 `package-lock.json` 기준 **npm** (`npm@10.9.3`) 으로 검증됐다. 평가자가 yarn 을 선호하면 동일 단계의 등가 명령으로 대체 가능:
+**로컬 검증 흐름**
+
+1. **API** — §5.3 `curl` 예시로 `/api/products`, `/api/health` 등 확인
+2. **UI** — 브라우저에서 [http://localhost:3000](http://localhost:3000) 접속 후 §5.4 데모 5단계 진행
+
+> **패키지 매니저**: yarn 을 선호하면 동일 단계의 등가 명령으로 대체 가능:
 >
 > ```bash
 > yarn install                  # npm ci 대체
 > yarn dev                      # npm run dev 대체
-> yarn build && yarn start      # 프로덕션 기동 (next start 는 build 산출물 필요)
+> yarn build && yarn start      # 프로덕션 기동 (next start — build 산출물 선행 필요)
 > yarn test                     # npm test 대체 (= vitest run)
 > ```
->
-> 자가 체크리스트의 "`yarn start` 로 오류 없이 실행" 항목은 `yarn build` 선행 후 만족된다 (`scripts.start = "next start"` 이므로 build 산출물이 있어야 한다).
 
 ### 5.3 빠른 검증 (curl)
 
