@@ -27,7 +27,9 @@ import { ScopeDonut } from "@/components/dashboard/ScopeDonut";
 import { StageBarChart } from "@/components/dashboard/StageBarChart";
 import { TopEmittersTable } from "@/components/dashboard/TopEmittersTable";
 import { CalculationBasisNote } from "@/components/dashboard/CalculationBasisNote";
-import type { CalculationRun, ProductDetail } from "@/types/api";
+import { ActivityForm } from "@/components/activity/ActivityForm";
+import { ActivitiesTable } from "@/components/activity/ActivitiesTable";
+import type { Activity, CalculationRun, ProductDetail } from "@/types/api";
 
 /**
  * 제품 상세 Container.
@@ -50,6 +52,8 @@ export default function ProductDetailPage() {
   const [lastRun, setLastRun] = useState<CalculationRun | null>(null);
   const [isCalculating, setIsCalculating] = useState(false);
   const [calcError, setCalcError] = useState<string | null>(null);
+  // 활동 표 → 폼 편집 대상.
+  const [editTarget, setEditTarget] = useState<Activity | null>(null);
 
   const handleCalculate = async () => {
     if (!id) return;
@@ -113,6 +117,31 @@ export default function ProductDetailPage() {
       )}
 
       {/* 활동 폼 / 히스토리는 다음 커밋에서 추가 */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
+        <div className="lg:col-span-2">
+          <ActivityForm
+            productId={p.id}
+            initial={editTarget}
+            onSubmitted={() => {
+              setEditTarget(null);
+              void product.mutate();
+            }}
+            onCancelEdit={() => setEditTarget(null)}
+          />
+        </div>
+        <div className="lg:col-span-3">
+          <ActivitiesTable
+            activities={p.activities}
+            onEdit={(a) => setEditTarget(a)}
+            onDeleted={() => {
+              if (editTarget) setEditTarget(null);
+              void product.mutate();
+            }}
+          />
+        </div>
+      </div>
+
+      {/* 계산 이력 / CSV 임포트 탭은 다음 커밋에서 추가 */}
     </div>
   );
 }
